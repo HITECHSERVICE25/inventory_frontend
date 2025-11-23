@@ -223,6 +223,7 @@ const handleCreate = async (e) => {
       setTechnicians(res.data.data.map((t) => ({ ...t, id: t._id })));
       setTotalRows(res.data.totalCount);
     } catch (err) {
+        console.log("error:", err);
       const serverErrors = err.response?.data?.error?.details || {};
       const formattedErrors = {};
   
@@ -232,7 +233,7 @@ const handleCreate = async (e) => {
       });
   
       setFormErrors(formattedErrors);
-      setError(err.response?.data?.message || 'Failed to create technician');
+      setError(err.response?.data?.error?.message || err.response?.data?.message || 'Failed to create technician');
     }
   };
   
@@ -268,7 +269,7 @@ const handleCreate = async (e) => {
       });
   
       setFormErrors(formattedErrors);
-      setError(err.response?.data?.message || 'Failed to update technician');
+      setError(err.response?.data?.error?.message || err.response?.data?.message || 'Failed to update technician');
     }
   };
 

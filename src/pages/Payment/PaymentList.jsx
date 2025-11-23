@@ -380,12 +380,7 @@ const PaymentList = () => {
                 </Typography>
             )
         },
-        { 
-            field: 'dueFromDiscounts', 
-            headerName: 'Due from Discounts', 
-            width: 150,
-            renderCell: (params) => `₹${(params.value || 0).toLocaleString()}`
-        },
+       
         {
             field: 'actions',
             headerName: 'Actions',

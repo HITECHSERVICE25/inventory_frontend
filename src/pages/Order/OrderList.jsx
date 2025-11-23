@@ -139,7 +139,7 @@ const OrderList = () => {
       );
       setOpenDiscountModal(false);
     } catch (err) {
-      setError('Failed to approve discount');
+      setError(err.response?.data?.error?.message || 'Failed to approve discount');
       console.error(err);
     } finally {
       setLoading(false);
@@ -164,7 +164,7 @@ const OrderList = () => {
       );
       setOpenDiscountModal(false);
     } catch (err) {
-      setError('Failed to reject discount');
+      setError(err.response?.data?.error?.message || 'Failed to reject discount');
       console.error(err);
     } finally {
       setLoading(false);
@@ -396,7 +396,7 @@ const OrderList = () => {
 
   const validateComplete = () => {
     const errors = {};
-    if (completeForm.products.length === 0) errors.products = 'At least one product required';
+    // if (completeForm.products.length === 0) errors.products = 'At least one product required';
     if (completeForm.discountPercentage < 0 || completeForm.discountPercentage > 100) {
       errors.discountPercentage = 'Invalid discount percentage';
     }
@@ -442,7 +442,7 @@ const OrderList = () => {
       handleClose();
     } catch (err) {
       setDraftError(
-        err.response?.data?.message ||
+        err.response?.data?.error?.message || err.response?.data?.message ||
         'Failed to create draft order. Please try again.'
       );
     }
@@ -489,7 +489,7 @@ const OrderList = () => {
       handleClose();
     } catch (err) {
       setDraftError(
-        err.response?.data?.message ||
+        err.response?.data?.error?.message || err.response?.data?.message ||
         'Failed to update draft order. Please try again.'
       );
     } finally {
@@ -499,7 +499,9 @@ const OrderList = () => {
 
   const completeOrder = async (e) => {
     e.preventDefault();
+    console.log("before validate")
     if (!validateComplete()) return;
+    console.log("after validate")
 
     try {
       const completionData = {
@@ -537,7 +539,7 @@ const OrderList = () => {
       setOrders(orders.map(o => o.id === selectedOrder.id ? formattedOrder : o));
       handleClose();
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to complete order');
+      setError(err.response?.data?.error?.message || err.response?.data?.message || 'Failed to complete order');
     }
   };
 
@@ -1379,7 +1381,7 @@ const OrderList = () => {
                 </Button>
               )}
 
-              {selectedOrder.status === 'pending-approval' && (
+              {/* {selectedOrder.status === 'pending-approval' && (
                 <Button
                   variant="contained"
                   color="success"
@@ -1387,7 +1389,7 @@ const OrderList = () => {
                 >
                   Approve Order
                 </Button>
-              )}
+              )} */}
             </Grid>
           </Grid>
         )}
