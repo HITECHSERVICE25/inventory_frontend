@@ -56,17 +56,18 @@ const CommissionList = () => {
                 };
                 const res = await commissionApi.getCommissions(params);
 
-                console.log("res:", res);
+                // console.log("res:", res);
                 
                 setCommissions(
-                    res.data.data.data.map((commission) => ({
-                        ...commission,
-                        id: commission._id,
-                        productName: commission.product.name,
-                        technicianName: commission.technician.name
-                    }))
-                );
-                setTotalRows(res.data.data.pagination.total);
+  res.data.data.data.map((commission) => ({
+    ...commission,
+    id: commission._id,
+    productName: commission.product?.name ?? 'N/A',
+    technicianName: commission.technician?.name ?? 'N/A'
+  }))
+);
+
+                setTotalRows(res.data.data?.pagination?.total);
             } catch (err) {
                 console.log(err);
                 setError('Failed to load commissions');
