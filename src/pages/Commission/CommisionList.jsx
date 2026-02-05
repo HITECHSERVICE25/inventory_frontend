@@ -55,6 +55,8 @@ const CommissionList = () => {
                     limit: paginationModel.pageSize
                 };
                 const res = await commissionApi.getCommissions(params);
+
+                console.log("res:", res);
                 
                 setCommissions(
                     res.data.data.data.map((commission) => ({
