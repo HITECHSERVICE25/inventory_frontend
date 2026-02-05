@@ -66,6 +66,7 @@ const CommissionList = () => {
                 );
                 setTotalRows(res.data.data.pagination.total);
             } catch (err) {
+                console.log(err);
                 setError('Failed to load commissions');
             } finally {
                 setLoading(false);
