@@ -20,4 +20,6 @@ export default {
     api.get('/', { 
       params: { page, limit } // Pass as query parameters [[8]]
     }),
+  deleteCommission: (id) =>
+    api.delete(`/${id}`)
 };

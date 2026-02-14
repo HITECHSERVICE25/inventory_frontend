@@ -223,16 +223,39 @@ const CommissionList = () => {
     };
 
     // Delete a commission
-    const handleDelete = async (id) => {
-        if (window.confirm('Are you sure you want to delete this commission?')) {
-            try {
-                //await commissionApi.deleteCommission(id);
-                //setCommissions(commissions.filter((c) => c.id !== id));
-            } catch (err) {
-                setError('Failed to delete commission');
-            }
-        }
-    };
+const handleDelete = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this commission?')) {
+        return;
+    }
+
+    try {
+        setLoading(true);
+
+        await commissionApi.deleteCommission(id);
+
+        // Refresh current page data (server pagination safe)
+        const res = await commissionApi.getCommissions({
+            page: paginationModel.page + 1,
+            limit: paginationModel.pageSize
+        });
+
+        setCommissions(
+            res.data.data.data.map((commission) => ({
+                ...commission,
+                id: commission._id,
+                productName: commission.product?.name ?? 'N/A',
+                technicianName: commission.technician?.name ?? 'N/A'
+            }))
+        );
+
+        setTotalRows(res.data.data?.pagination?.total);
+    } catch (err) {
+        setError(err.response?.data?.message || 'Failed to delete commission');
+    } finally {
+        setLoading(false);
+    }
+};
+
 
     // DataGrid columns
     const columns = [
