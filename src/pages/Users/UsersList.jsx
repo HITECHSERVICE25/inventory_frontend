@@ -81,7 +81,7 @@ const UsersList = () => {
   };
 
   const handleOpenEditModal = (userData, params) => {
-    console.log(userData, params);
+    //console.log(userData, params);
     setSelectedUser(userData);
     setFormData({
       name: userData.name,

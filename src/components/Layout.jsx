@@ -16,7 +16,7 @@ const Sidebar = () => {
             <List>
                 {[
                     { text: "Dashboard", path: "/dashboard" },
-                    { text: "Installation", path: "/installation" },
+                    // { text: "Installation", path: "/installation" },
                     { text: "Users", path: "/users" },
                     { text: "Companies", path: "/companies" },
                     { text: "Products", path: "/products" },

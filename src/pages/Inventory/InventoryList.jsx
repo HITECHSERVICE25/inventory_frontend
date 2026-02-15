@@ -52,8 +52,8 @@ const InventoryList = () => {
           limit: paginationModel.pageSize,
         };
         const res = await inventoryApi.getAllocationLogs(params);
-        console.log("res:", res);
-        console.log("res.data.data.map((log) => ({ ...log, id: log._id, productName: log.product.name, technicianName: log.technician.name })):", res.data.data.map((log) => ({ ...log, id: log._id, productName: log.product.name, technicianName: log.technician.name })));
+        //console.log("res:", res);
+        //console.log("res.data.data.map((log) => ({ ...log, id: log._id, productName: log.product.name, technicianName: log.technician.name })):", res.data.data.map((log) => ({ ...log, id: log._id, productName: log.product.name, technicianName: log.technician.name })));
         setAllocationLogs(res.data.data.map((log) => ({ ...log, id: log._id, productName: log.product.name, technicianName: log.technician.name })));
         setTotalRows(res.data.pagination.total);
       } catch (err) {

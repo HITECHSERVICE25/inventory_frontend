@@ -40,6 +40,17 @@ getDraftOrders: ({
   }
 }),
 
+// Export Orders by Date Range (for Excel)
+exportOrders: ({ startDate, endDate }) =>
+  api.get('/export', {
+    params: {
+      startDate,
+      endDate
+    },
+    responseType: "blob"
+  }),
+
+
   // Get Single Order
   getOrder: (id) => api.get(`/${id}`),
 

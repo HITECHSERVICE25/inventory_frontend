@@ -16,7 +16,10 @@ import {
   FormHelperText,
   Chip,
   Divider,
-  Alert
+  Alert,
+  FormControlLabel,
+  Checkbox,
+  Paper
 } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
 import EditIcon from '@mui/icons-material/Edit';
@@ -31,6 +34,8 @@ import orderApi from '../../api/order';
 import companyApi from '../../api/company';
 import technicianApi from '../../api/technician';
 import productApi from '../../api/product';
+import DeleteIcon from "@mui/icons-material/Delete";
+
 
 
 const formatCurrency = (value) =>
@@ -81,6 +86,7 @@ const [miscDiscountSplit, setMiscDiscountSplit] = useState({
     TCRNumber: '',
     company: '',
     technician: '',
+    freeInstallation: false,
     customer: {
       name: '',
       contact: { phone: '', alternatePhone: '' },
@@ -89,12 +95,6 @@ const [miscDiscountSplit, setMiscDiscountSplit] = useState({
   });
 
   const [draftError, setDraftError] = useState('');
-
-  // const [completeForm, setCompleteForm] = useState({
-  //   products: [],
-  //   miscellaneousCost: 0,
-  //   discountPercentage: 0
-  // });
 
   const [completeForm, setCompleteForm] = useState({
   products: [],
@@ -181,17 +181,20 @@ const [miscDiscountSplit, setMiscDiscountSplit] = useState({
 
 
       // Update local state
-      setOrders(prevOrders =>
-        prevOrders.map(order =>
-          order.id === selectedOrder.id
-            ? {
-              ...order,
-              status: 'completed',
-              discountApproved: 'approved'
-            }
-            : order
-        )
-      );
+      // setOrders(prevOrders =>
+      //   prevOrders.map(order =>
+      //     order.id === selectedOrder.id
+      //       ? {
+      //         ...order,
+      //         status: 'completed',
+      //         discountApproved: 'approved'
+      //       }
+      //       : order
+      //   )
+      // );
+
+      fetchData();
+
       setOpenDiscountModal(false);
     } catch (err) {
       setError(err.response?.data?.error?.message || 'Failed to approve discount');
@@ -206,17 +209,19 @@ const [miscDiscountSplit, setMiscDiscountSplit] = useState({
       setLoading(true);
       await orderApi.rejectDiscount(selectedOrder.id);
 
-      // Update local state
-      setOrders(prevOrders =>
-        prevOrders.map(order =>
-          order.id === selectedOrder.id
-            ? {
-              ...order,
-              discountApproved: 'rejected'
-            }
-            : order
-        )
-      );
+      // // Update local state
+      // setOrders(prevOrders =>
+      //   prevOrders.map(order =>
+      //     order.id === selectedOrder.id
+      //       ? {
+      //         ...order,
+      //         discountApproved: 'rejected'
+      //       }
+      //       : order
+      //   )
+      // );
+
+      fetchData();
       setOpenDiscountModal(false);
     } catch (err) {
       setError(err.response?.data?.error?.message || 'Failed to reject discount');
@@ -226,8 +231,7 @@ const [miscDiscountSplit, setMiscDiscountSplit] = useState({
     }
   };
 
-  useEffect(() => {
-    const fetchData = async () => {
+  const fetchData = async () => {
       try {
         const params = {
           page: paginationModel.page + 1,
@@ -274,6 +278,9 @@ const [miscDiscountSplit, setMiscDiscountSplit] = useState({
         setLoading(false);
       }
     };
+
+  useEffect(() => {
+    
     fetchData();
   }, [paginationModel]);
 
@@ -296,28 +303,31 @@ const [miscDiscountSplit, setMiscDiscountSplit] = useState({
 
   // Fetch technicians when company changes
   useEffect(() => {
-    const fetchTechnicians = async () => {
-      if (draftForm.company) {
-        setLoadingTechnicians(true);
-        try {
-          const res = await technicianApi.getTechnicians({ companyId: draftForm.company });
-          setFilteredTechnicians(res.data.data);
+  const fetchTechnicians = async () => {
+    if (!draftForm.company) {
+      setFilteredTechnicians([]);
+      return;
+    }
 
-          // Reset technician selection
-          setDraftForm(prev => ({ ...prev, technician: '' }));
-        } catch (err) {
-          setDraftError('Failed to load technicians for this company');
-          console.error(err);
-        } finally {
-          setLoadingTechnicians(false);
-        }
-      } else {
-        setFilteredTechnicians([]);
-      }
-    };
+    setLoadingTechnicians(true);
 
-    fetchTechnicians();
-  }, [draftForm.company]);
+    try {
+      const res = await technicianApi.getTechnicians({
+        companyId: draftForm.company
+      });
+
+      setFilteredTechnicians(res.data.data);
+    } catch (err) {
+      setDraftError('Failed to load technicians for this company');
+      console.error(err);
+    } finally {
+      setLoadingTechnicians(false);
+    }
+  };
+
+  fetchTechnicians();
+}, [draftForm.company]);
+
 
   // Draft Form Handling
   const handleDraftOpen = () => {
@@ -325,6 +335,7 @@ const [miscDiscountSplit, setMiscDiscountSplit] = useState({
       TCRNumber: '',
       company: '',
       technician: '',
+      freeInstallation:false,
       customer: {
         name: '',
         contact: { phone: '', alternatePhone: '' },
@@ -355,31 +366,99 @@ const [miscDiscountSplit, setMiscDiscountSplit] = useState({
     return { ...obj };
   };
 
-  const handleDraftChange = (e) => {
-    const { name, value } = e.target;
-    const updatedForm = setNestedValue({ ...draftForm }, name, value);
-    setDraftForm(updatedForm);
+//   const handleDraftChange = (e) => {
+//   const { name, value, type, checked } = e.target;
 
-    setFormErrors(prev => ({
-      ...prev,
-      [name]: null
-    }));
+//   if (type === "checkbox") {
+//     setDraftForm(prev => ({
+//       ...prev,
+//       [name]: checked
+//     }));
+//     return;
+//   }
 
-    if (draftError) setDraftError('');
-  };
+//   if (name === "company") {
+//     setDraftForm(prev => ({
+//       ...prev,
+//       company: value,
+//       technician: '' // reset only on manual change
+//     }));
+//     return;
+//   }
+
+//   setDraftForm(prev => ({
+//     ...prev,
+//     [name]: value
+//   }));
+// };
+
 
   // View/Edit Draft Order
+  
+  
+  const handleDraftChange = (e) => {
+  const { name, value, type, checked } = e.target;
+
+  if (type === "checkbox") {
+    setDraftForm(prev => ({
+      ...prev,
+      [name]: checked
+    }));
+    return;
+  }
+
+  if (name === "company") {
+    setDraftForm(prev => ({
+      ...prev,
+      company: value,
+      technician: ''
+    }));
+    return;
+  }
+
+  // ✅ Handle nested fields like customer.name
+  if (name.includes(".")) {
+    const keys = name.split(".");
+
+    setDraftForm(prev => {
+      const updated = { ...prev };
+      let current = updated;
+
+      for (let i = 0; i < keys.length - 1; i++) {
+        current[keys[i]] = { ...current[keys[i]] };
+        current = current[keys[i]];
+      }
+
+      current[keys[keys.length - 1]] = value;
+
+      return updated;
+    });
+
+    return;
+  }
+
+  // normal flat field
+  setDraftForm(prev => ({
+    ...prev,
+    [name]: value
+  }));
+};
+
+  
+  
   const handleViewDraftOpen = (order) => {
     setSelectedOrder(order);
     setOpenViewModal(true);
   };
 
   const handleEditDraftOpen = (order) => {
+    //console.log(order);
     setSelectedOrder({ ...order, technicianName: order.technician?.name });
     setDraftForm({
       TCRNumber: order.TCRNumber || '',
       company: order.company?._id || '',
       technician: order.technician?._id || '',
+       freeInstallation: order.freeInstallation,
       customer: {
         name: order.customer?.name || '',
         contact: {
@@ -467,35 +546,40 @@ const [miscDiscountSplit, setMiscDiscountSplit] = useState({
     if (!validateDraft()) return;
 
     try {
+
+      //console.log(draftForm);
+
       const response = await orderApi.createDraftOrder(draftForm);
-      const newOrder = response.data.data;
+      // const newOrder = response.data.data;
 
-      // Calculate total amount for the new order
-      const productTotal = newOrder.products.reduce((sum, product) => {
-        return sum + (product.product?.price || 0) * (product.quantity || 0);
-      }, 0);
+      // // Calculate total amount for the new order
+      // const productTotal = newOrder.products.reduce((sum, product) => {
+      //   return sum + (product.product?.price || 0) * (product.quantity || 0);
+      // }, 0);
 
-      const installationCharge = newOrder.installationCharge || 0;
-      const miscellaneousCost = newOrder.miscellaneousCost || 0;
-      const discountPercentage = newOrder.discountPercentage || 0;
+      // const installationCharge = newOrder.installationCharge || 0;
+      // const miscellaneousCost = newOrder.miscellaneousCost || 0;
+      // const discountPercentage = newOrder.discountPercentage || 0;
 
-      const subtotal = productTotal + installationCharge + miscellaneousCost;
-      const discountAmount = (subtotal * discountPercentage) / 100;
-      const total = subtotal - discountAmount;
+      // const subtotal = productTotal + installationCharge + miscellaneousCost;
+      // const discountAmount = (subtotal * discountPercentage) / 100;
+      // const total = subtotal - discountAmount;
 
-      // Format the new order to match the structure of existing orders
-      const formattedOrder = {
-        ...newOrder,
-        id: newOrder._id,
-        companyName: newOrder.company?.name,
-        technicianName: newOrder.technician?.name,
-        customerName: newOrder.customer?.name,
-        status: newOrder.status,
-        TCRNumber: newOrder.TCRNumber,
-        totalAmount: total
-      };
+      // // Format the new order to match the structure of existing orders
+      // const formattedOrder = {
+      //   ...newOrder,
+      //   id: newOrder._id,
+      //   companyName: newOrder.company?.name,
+      //   technicianName: newOrder.technician?.name,
+      //   customerName: newOrder.customer?.name,
+      //   status: newOrder.status,
+      //   TCRNumber: newOrder.TCRNumber,
+      //   totalAmount: total
+      // };
 
-      setOrders(prevOrders => [formattedOrder, ...prevOrders]);
+      // setOrders(prevOrders => [formattedOrder, ...prevOrders]);
+
+      fetchData();
       handleClose();
     } catch (err) {
       setDraftError(
@@ -512,36 +596,38 @@ const [miscDiscountSplit, setMiscDiscountSplit] = useState({
     try {
       setLoading(true);
       const response = await orderApi.updateDraftOrder(selectedOrder.id, draftForm);
-      const updatedOrder = response.data.data;
+      // const updatedOrder = response.data.data;
 
-      // Calculate total amount for the updated order
-      const productTotal = updatedOrder.products.reduce((sum, product) => {
-        return sum + (product.product?.price || 0) * (product.quantity || 0);
-      }, 0);
+      // // Calculate total amount for the updated order
+      // const productTotal = updatedOrder.products.reduce((sum, product) => {
+      //   return sum + (product.product?.price || 0) * (product.quantity || 0);
+      // }, 0);
 
-      const installationCharge = updatedOrder.installationCharge || 0;
-      const miscellaneousCost = updatedOrder.miscellaneousCost || 0;
-      const discountPercentage = updatedOrder.discountPercentage || 0;
+      // const installationCharge = updatedOrder.installationCharge || 0;
+      // const miscellaneousCost = updatedOrder.miscellaneousCost || 0;
+      // const discountPercentage = updatedOrder.discountPercentage || 0;
 
-      const subtotal = productTotal + installationCharge + miscellaneousCost;
-      const discountAmount = (subtotal * discountPercentage) / 100;
-      const total = subtotal - discountAmount;
+      // const subtotal = productTotal + installationCharge + miscellaneousCost;
+      // const discountAmount = (subtotal * discountPercentage) / 100;
+      // const total = subtotal - discountAmount;
 
-      // Format the updated order
-      const formattedOrder = {
-        ...updatedOrder,
-        id: updatedOrder._id,
-        companyName: updatedOrder.company?.name,
-        technicianName: updatedOrder.technician?.name,
-        customerName: updatedOrder.customer?.name,
-        status: updatedOrder.status,
-        TCRNumber: updatedOrder.TCRNumber,
-        totalAmount: total
-      };
+      // // Format the updated order
+      // const formattedOrder = {
+      //   ...updatedOrder,
+      //   id: updatedOrder._id,
+      //   companyName: updatedOrder.company?.name,
+      //   technicianName: updatedOrder.technician?.name,
+      //   customerName: updatedOrder.customer?.name,
+      //   status: updatedOrder.status,
+      //   TCRNumber: updatedOrder.TCRNumber,
+      //   totalAmount: total
+      // };
 
-      setOrders(prevOrders =>
-        prevOrders.map(o => o.id === selectedOrder.id ? formattedOrder : o)
-      );
+      // setOrders(prevOrders =>
+      //   prevOrders.map(o => o.id === selectedOrder.id ? formattedOrder : o)
+      // );
+
+      fetchData();
 
       handleClose();
     } catch (err) {
@@ -556,9 +642,9 @@ const [miscDiscountSplit, setMiscDiscountSplit] = useState({
 
   const completeOrder = async (e) => {
     e.preventDefault();
-    console.log("before validate")
+    //console.log("before validate")
     if (!validateComplete()) return;
-    console.log("after validate")
+    //console.log("after validate")
 
     try {
       // const completionData = {
@@ -580,39 +666,64 @@ const [miscDiscountSplit, setMiscDiscountSplit] = useState({
 
       
       const response = await orderApi.completeOrder(selectedOrder.id, completionData);
-      const updatedOrder = response.data.data;
+      // const updatedOrder = response.data.data;
 
-      // Calculate total amount for the completed order
-      const productTotal = updatedOrder.products.reduce((sum, product) => {
-        return sum + (product.product?.price || 0) * (product.quantity || 0);
-      }, 0);
+      // // Calculate total amount for the completed order
+      // const productTotal = updatedOrder.products.reduce((sum, product) => {
+      //   return sum + (product.product?.price || 0) * (product.quantity || 0);
+      // }, 0);
 
-      const installationCharge = updatedOrder.installationCharge || 0;
-      const miscellaneousCost = updatedOrder.miscellaneousCost || 0;
-      const discountPercentage = updatedOrder.discountPercentage || 0;
+      // const installationCharge = updatedOrder.installationCharge || 0;
+      // const miscellaneousCost = updatedOrder.miscellaneousCost || 0;
+      // const discountPercentage = updatedOrder.discountPercentage || 0;
 
-      const subtotal = productTotal + installationCharge + miscellaneousCost;
-      const discountAmount = (subtotal * discountPercentage) / 100;
-      const total = subtotal - discountAmount;
+      // const subtotal = productTotal + installationCharge + miscellaneousCost;
+      // const discountAmount = (subtotal * discountPercentage) / 100;
+      // const total = subtotal - discountAmount;
 
-      // Format the completed order
-      const formattedOrder = {
-        ...updatedOrder,
-        id: updatedOrder._id,
-        companyName: updatedOrder.company?.name,
-        technicianName: updatedOrder.technician?.name,
-        customerName: updatedOrder.customer?.name,
-        status: updatedOrder.status,
-        TCRNumber: updatedOrder.TCRNumber,
-        totalAmount: total
-      };
+      // // Format the completed order
+      // const formattedOrder = {
+      //   ...updatedOrder,
+      //   id: updatedOrder._id,
+      //   companyName: updatedOrder.company?.name,
+      //   technicianName: updatedOrder.technician?.name,
+      //   customerName: updatedOrder.customer?.name,
+      //   status: updatedOrder.status,
+      //   TCRNumber: updatedOrder.TCRNumber,
+      //   totalAmount: total
+      // };
 
-      setOrders(orders.map(o => o.id === selectedOrder.id ? formattedOrder : o));
+      // setOrders(orders.map(o => o.id === selectedOrder.id ? formattedOrder : o));
+
+      fetchData();
       handleClose();
     } catch (err) {
       setError(err.response?.data?.error?.message || err.response?.data?.message || 'Failed to complete order');
     }
   };
+
+
+  const handleDeleteDraft = async (row) => {
+  const confirmDelete = window.confirm(
+    `Are you sure you want to delete Draft TCR: ${row.TCRNumber}?`
+  );
+
+  if (!confirmDelete) return;
+
+  try {
+    await orderApi.deleteDraft(row.id);
+
+    // Remove from UI without refetch
+    // setOrders(prev => prev.filter(item => item.id !== row.id));
+
+
+    fetchData();
+
+  } catch (error) {
+    console.error("Delete failed:", error);
+    alert("Failed to delete draft order");
+  }
+};
 
 
 
@@ -654,19 +765,31 @@ const [miscDiscountSplit, setMiscDiscountSplit] = useState({
 
           {/* Draft-specific actions */}
           {params.row.status === 'draft' && (
-            <>
-              <Tooltip title="Edit Draft">
-                <IconButton onClick={() => handleEditDraftOpen(params.row)} color="primary">
-                  <EditIcon />
-                </IconButton>
-              </Tooltip>
-              <Tooltip title="Complete Order">
-                <IconButton onClick={() => handleCompleteOpen(params.row)} color="primary">
-                  <CheckCircleIcon />
-                </IconButton>
-              </Tooltip>
-            </>
-          )}
+  <>
+    <Tooltip title="Edit Draft">
+      <IconButton onClick={() => handleEditDraftOpen(params.row)} color="primary">
+        <EditIcon />
+      </IconButton>
+    </Tooltip>
+
+    <Tooltip title="Complete Order">
+      <IconButton onClick={() => handleCompleteOpen(params.row)} color="primary">
+        <CheckCircleIcon />
+      </IconButton>
+    </Tooltip>
+
+    {/* ✅ Delete Draft */}
+    {user.role == "admin" && <Tooltip title="Delete Draft">
+      <IconButton
+        onClick={() => handleDeleteDraft(params.row)}
+        color="error"
+      >
+        <DeleteIcon />
+      </IconButton>
+    </Tooltip>}
+  </>
+)}
+
 
           {/* Pending-approval actions */}
           {params.row.status === 'pending-approval' && (
@@ -748,7 +871,7 @@ const [miscDiscountSplit, setMiscDiscountSplit] = useState({
               </FormControl>
             </Grid>
 
-            <Grid item xs={12} sm={6}>
+            <Grid item xs={6} sm={6}>
               <FormControl fullWidth error={!!formErrors.technician}>
                 <InputLabel>Technician *</InputLabel>
                 <Select
@@ -778,6 +901,19 @@ const [miscDiscountSplit, setMiscDiscountSplit] = useState({
                 <FormHelperText>{formErrors.technician}</FormHelperText>
               </FormControl>
             </Grid>
+            <Grid item xs={6}>
+  <FormControlLabel
+    control={
+      <Checkbox
+        name="freeInstallation"
+        checked={draftForm.freeInstallation}
+        onChange={handleDraftChange}
+      />
+    }
+    label="Free Installation"
+  />
+</Grid>
+
 
             <Grid item xs={12}>
               <Typography variant="subtitle2" gutterBottom>
@@ -950,6 +1086,19 @@ const [miscDiscountSplit, setMiscDiscountSplit] = useState({
                 <FormHelperText>{formErrors.technician}</FormHelperText>
               </FormControl>
             </Grid>
+
+            <Grid item xs={6}>
+  <FormControlLabel
+    control={
+      <Checkbox
+        name="freeInstallation"
+        checked={draftForm.freeInstallation}
+        onChange={handleDraftChange}
+      />
+    }
+    label="Free Installation"
+  />
+</Grid>
 
             <Grid item xs={12}>
               <Typography variant="subtitle2" gutterBottom>
@@ -1552,6 +1701,10 @@ const renderViewModal = () => {
                 value={`₹${installationCharge.toFixed(2)}`}
               />
               <InfoRow
+                label="Free"
+                value={`${selectedOrder.freeInstallation ? "Yes" : "No"}`}
+              />
+              <InfoRow
                 label="Fitting"
                 value={
                   <>
@@ -2134,6 +2287,70 @@ const renderDiscountModal = () => {
   );
 };
 
+const [startDate, setStartDate] = useState('');
+const [endDate, setEndDate] = useState('');
+const [exportLoading, setExportLoading] = useState(false);
+
+
+const isDateRangeValid = () => {
+  if (!startDate || !endDate) return false;
+
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+
+  const diffInDays = (end - start) / (1000 * 60 * 60 * 24);
+
+  return diffInDays >= 0 && diffInDays <= 90;
+};
+
+
+const handleExport = async () => {
+  if (!isDateRangeValid()) {
+    alert("Date range must be within 90 days and valid.");
+    return;
+  }
+
+  try {
+    setExportLoading(true);
+
+    const res = await orderApi.exportOrders({
+      startDate,
+      endDate,
+    });
+
+    // Create file from response
+    const blob = new Blob([res.data], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+
+    // Create download link
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+
+    // Optional: dynamic filename with date range
+    link.setAttribute(
+      "download",
+      `Orders_${startDate}_to_${endDate}.xlsx`
+    );
+
+    document.body.appendChild(link);
+    link.click();
+
+    // Cleanup
+    link.remove();
+    window.URL.revokeObjectURL(url);
+
+  } catch (error) {
+    console.error(error);
+    alert("Export failed");
+  } finally {
+    setExportLoading(false);
+  }
+};
+
+
+
 
 
   return (
@@ -2150,6 +2367,68 @@ const renderDiscountModal = () => {
 
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
+      
+      <Paper
+  elevation={2}
+  sx={{
+    p: 2,
+    mb: 3,
+    borderRadius: 2,
+    display: "flex",
+    flexWrap: "wrap",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 2
+  }}
+>
+  {/* Left Section */}
+  <Box sx={{ display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap" }}>
+    <Typography variant="subtitle1" fontWeight={600}>
+      Export Orders
+    </Typography>
+
+    <TextField
+      type="date"
+      label="Start Date"
+      size="small"
+      InputLabelProps={{ shrink: true }}
+      value={startDate}
+      onChange={(e) => setStartDate(e.target.value)}
+    />
+
+    <TextField
+      type="date"
+      label="End Date"
+      size="small"
+      InputLabelProps={{ shrink: true }}
+      value={endDate}
+      onChange={(e) => setEndDate(e.target.value)}
+      error={startDate && endDate && !isDateRangeValid()}
+      helperText={
+        startDate && endDate && !isDateRangeValid()
+          ? "Maximum range is 90 days"
+          : ""
+      }
+    />
+  </Box>
+
+  {/* Right Section */}
+  <Button
+    variant="contained"
+    size="medium"
+    onClick={handleExport}
+    disabled={!isDateRangeValid() || exportLoading}
+    sx={{
+      minWidth: 140,
+      fontWeight: 600
+    }}
+  >
+    {exportLoading ? "Exporting..." : "Export Excel"}
+  </Button>
+</Paper>
+
+
+      
       <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
         <DataGrid
           rows={orders}
@@ -2228,3 +2507,5 @@ const SummaryRow = ({ label, value, bold = false, error = false }) => (
 
 
 export default OrderList;
+
+

@@ -31,6 +31,7 @@ const CompanyList = () => {
   const [selectedCompany, setSelectedCompany] = useState(null);
   const [formData, setFormData] = useState({
     name: '',
+    installationCharge: 0,
   });
 
   // Fetch companies
@@ -57,15 +58,20 @@ const CompanyList = () => {
 
   // Open modals
   const handleCreateOpen = () => {
-    setFormData({ name: '' });
-    setOpenCreateModal(true);
-  };
+  setFormData({ name: '', installationCharge: 0 });
+  setOpenCreateModal(true);
+};
+
 
   const handleEditOpen = (company) => {
-    setSelectedCompany(company);
-    setFormData({ name: company.name });
-    setOpenEditModal(true);
-  };
+  setSelectedCompany(company);
+  setFormData({
+    name: company.name,
+    installationCharge: company.installationCharge || 0,
+  });
+  setOpenEditModal(true);
+};
+
 
   const handleClose = () => {
     setOpenCreateModal(false);
@@ -75,9 +81,14 @@ const CompanyList = () => {
 
   // Handle form changes
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
-  };
+  const { name, value } = e.target;
+
+  setFormData({
+    ...formData,
+    [name]: value,
+  });
+};
+
 
   // Create a new company
 const handleCreate = async (e) => {
@@ -139,77 +150,109 @@ const handleUpdate = async (e) => {
 
   // Columns for DataGrid
   const columns = [
-    { field: 'sl_no', headerName: 'Sl No.', width: 100 },
-    { field: 'name', headerName: 'Company Name', width: 250 },
-    {
-      field: 'createdAt',
-      headerName: 'Date',
-      width: 200,
-      valueFormatter: (params) => new Date(params).toLocaleDateString(),
-    },
-    {
-      field: 'actions',
-      headerName: 'Actions',
-      width: 150,
-      renderCell: (params) => (
-        <>
-          <Tooltip title="Edit">
-            <IconButton onClick={() => handleEditOpen(params.row)}>
-              <EditIcon />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title="Delete">
-            <IconButton
-              onClick={() => handleDelete(params.row.id)}
-              color="error"
-            >
-              <DeleteIcon />
-            </IconButton>
-          </Tooltip>
-        </>
-      ),
-    },
-  ];
+  { field: 'sl_no', headerName: 'Sl No.', width: 100 },
+  { field: 'name', headerName: 'Company Name', flex: 1, minWidth: 200 },
+  { 
+    field: 'installationCharge',
+    headerName: 'Installation Charge (₹)',
+    flex: 1,
+    minWidth: 200 
+  },
+  {
+    field: 'createdAt',
+    headerName: 'Date',
+    minWidth: 180,
+  },
+  {
+    field: 'actions',
+    headerName: 'Actions',
+    width: 150,
+    sortable: false,
+    filterable: false,
+    renderCell: (params) => (
+      <>
+        <Tooltip title="Edit">
+          <IconButton onClick={() => handleEditOpen(params.row)}>
+            <EditIcon />
+          </IconButton>
+        </Tooltip>
+        <Tooltip title="Delete">
+          <IconButton
+            onClick={() => handleDelete(params.row.id)}
+            color="error"
+          >
+            <DeleteIcon />
+          </IconButton>
+        </Tooltip>
+      </>
+    ),
+  },
+];
+
 
   // Render form fields
   const renderFormFields = () => (
-    <Grid container spacing={2}>
-      <Grid item xs={12}>
-        <TextField
-          label="Company Name*"
-          name="name"
-          value={formData.name}
-          onChange={handleChange}
-          fullWidth
-          required
-        />
-      </Grid>
+  <Grid container spacing={2}>
+    <Grid item xs={12}>
+      <TextField
+        label="Company Name*"
+        name="name"
+        value={formData.name}
+        onChange={handleChange}
+        fullWidth
+        required
+      />
     </Grid>
-  );
+
+    <Grid item xs={12}>
+      <TextField
+        label="Installation Charge (₹)*"
+        name="installationCharge"
+        type="number"
+        value={formData.installationCharge}
+        onChange={handleChange}
+        fullWidth
+        required
+        InputProps={{ inputProps: { min: 0 } }}
+      />
+    </Grid>
+  </Grid>
+);
+
 
   if (loading) return <CircularProgress />;
 
   return (
     <Box sx={{ height: 600, width: '100%' }}>
-      {/* Header */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-        <Typography variant="h5">Companies</Typography>
-        <Button variant="contained" onClick={handleCreateOpen}>
-          Add Company
-        </Button>
-      </Box>
+    
+    <Box
+      sx={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        mb: 2,
+      }}
+    >
+      <Typography variant="h5">Companies</Typography>
+      <Button variant="contained" onClick={handleCreateOpen}>
+        Add Company
+      </Button>
+    </Box>
 
-      {/* DataGrid */}
-      <DataGrid
-        rows={companies}
-        columns={columns}
-        rowCount={companies.length}
-        paginationMode="server"
-        paginationModel={paginationModel}
-        onPaginationModelChange={setPaginationModel}
-        pageSizeOptions={[5, 10]}
-        loading={loading}
-      />
+    <div>
+       <DataGrid
+      rows={companies}
+      columns={columns}
+      rowCount={companies.length}
+      paginationMode="server"
+      paginationModel={paginationModel}
+      onPaginationModelChange={setPaginationModel}
+      pageSizeOptions={[5, 10]}
+      loading={loading}
+      autoHeight
+    />
+    </div>
+
 
       {/* Create Modal */}
       <Modal open={openCreateModal} onClose={handleClose}>

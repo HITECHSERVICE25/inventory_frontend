@@ -110,7 +110,7 @@ const PaymentList = () => {
 
     const handlePaymentOpen = (technician = null) => {
         if (technician) {
-            console.log(technician);
+            //console.log(technician);
             setFormData({
                 technicianId: technician._id,
                 amount: Math.min(technician.outstandingBalance, technician.outstandingBalance).toFixed(2),
@@ -307,7 +307,7 @@ const PaymentList = () => {
   headerName: 'Received By', 
   width: 150,
   valueGetter: (params) => {
-    console.log("receivedBy params:", params);
+    //console.log("receivedBy params:", params);
     return params.name || 'N/A';
   }
 },
