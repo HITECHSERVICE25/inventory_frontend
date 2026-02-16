@@ -19,7 +19,10 @@ import {
   Alert,
   FormControlLabel,
   Checkbox,
-  Paper
+  Paper,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails
 } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
 import EditIcon from '@mui/icons-material/Edit';
@@ -35,6 +38,7 @@ import companyApi from '../../api/company';
 import technicianApi from '../../api/technician';
 import productApi from '../../api/product';
 import DeleteIcon from "@mui/icons-material/Delete";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 
 
 
@@ -209,18 +213,6 @@ const [miscDiscountSplit, setMiscDiscountSplit] = useState({
       setLoading(true);
       await orderApi.rejectDiscount(selectedOrder.id);
 
-      // // Update local state
-      // setOrders(prevOrders =>
-      //   prevOrders.map(order =>
-      //     order.id === selectedOrder.id
-      //       ? {
-      //         ...order,
-      //         discountApproved: 'rejected'
-      //       }
-      //       : order
-      //   )
-      // );
-
       fetchData();
       setOpenDiscountModal(false);
     } catch (err) {
@@ -313,7 +305,9 @@ const [miscDiscountSplit, setMiscDiscountSplit] = useState({
 
     try {
       const res = await technicianApi.getTechnicians({
-        companyId: draftForm.company
+        companyId: draftForm.company,
+        isBlocked: false,
+
       });
 
       setFilteredTechnicians(res.data.data);
@@ -808,6 +802,14 @@ const [miscDiscountSplit, setMiscDiscountSplit] = useState({
                   <PercentIcon />
                 </IconButton>
               </Tooltip>
+              {user.role == "admin" && <Tooltip title="Delete Draft">
+      <IconButton
+        onClick={() => handleDeleteDraft(params.row)}
+        color="error"
+      >
+        <DeleteIcon />
+      </IconButton>
+    </Tooltip>}
               {/* <Tooltip title="Approve Order">
                 <Button
                   variant="contained"
@@ -1197,422 +1199,285 @@ const [miscDiscountSplit, setMiscDiscountSplit] = useState({
     </Modal>
   );
 
-  // const renderViewModal = () => (
-  //   <Modal open={openViewModal} onClose={handleClose}>
-  //     <Box sx={modalStyle}>
-  //       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-  //         <Typography variant="h6">Order Details</Typography>
-  //         <IconButton onClick={handleClose} size="small">
-  //           <CloseIcon />
-  //         </IconButton>
-  //       </Box>
 
-  //       {selectedOrder && (
-  //         <Grid container spacing={2} sx={{ mt: 1 }}>
-  //           <Grid item xs={12} md={6}>
-  //             <Typography variant="subtitle2">Order Information</Typography>
-  //             <Divider sx={{ my: 1 }} />
-  //             <Grid container spacing={1}>
-  //               <Grid item xs={4}><Typography variant="body2"><strong>TCR:</strong></Typography></Grid>
-  //               <Grid item xs={8}><Typography>{selectedOrder.TCRNumber}</Typography></Grid>
+// const renderViewModal = () => {
+//   if (!selectedOrder) return null;
 
-  //               <Grid item xs={4}><Typography variant="body2"><strong>Status:</strong></Typography></Grid>
-  //               <Grid item xs={8}>
-  //                 <Chip
-  //                   label={selectedOrder.status}
-  //                   color={
-  //                     selectedOrder.status === 'completed' ? 'success' :
-  //                       selectedOrder.status === 'pending-approval' ? 'warning' :
-  //                         selectedOrder.status === 'approved' ? 'primary' : 'info'
-  //                   }
-  //                   size="small"
-  //                 />
-  //               </Grid>
+//   /* -------------------- CALCULATIONS -------------------- */
 
-  //               <Grid item xs={4}><Typography variant="body2"><strong>Company:</strong></Typography></Grid>
-  //               <Grid item xs={8}><Typography>{selectedOrder.companyName}</Typography></Grid>
+//   const productTotal =
+//     selectedOrder.products?.reduce(
+//       (sum, item) =>
+//         sum + (item.product?.price || 0) * (item.quantity || 0),
+//       0
+//     ) || 0;
 
-  //               <Grid item xs={4}><Typography variant="body2"><strong>Technician:</strong></Typography></Grid>
-  //               <Grid item xs={8}><Typography>{selectedOrder.technicianName}</Typography></Grid>
+//   const installationCharge = Number(selectedOrder.installationCharge) || 0;
+//   const fittingCharge = Number(selectedOrder.fittingCost) || 0;
+//   const miscCost = Number(selectedOrder.miscellaneousCost) || 0;
 
-  //               <Grid item xs={4}><Typography variant="body2"><strong>Installation:</strong></Typography></Grid>
-  //               <Grid item xs={8}><Typography>₹{selectedOrder.installationCharge?.toFixed(2) || '0.00'}</Typography></Grid>
+//   const productDiscountAmount =
+//     (productTotal + installationCharge) * ((selectedOrder.discountPercentage || 0) / 100);
 
-  //               <Grid item xs={4}><Typography variant="body2"><strong>Total:</strong></Typography></Grid>
-  //               <Grid item xs={8}><Typography variant="body1" fontWeight="bold">₹{selectedOrder.totalAmount?.toFixed(2) || '0.00'}</Typography></Grid>
-  //             </Grid>
-  //           </Grid>
+//   const miscDiscountAmount =
+//     miscCost * ((selectedOrder.miscDiscountPercentage || 0) / 100);
 
-  //           <Grid item xs={12} md={6}>
-  //             <Typography variant="subtitle2">Customer Information</Typography>
-  //             <Divider sx={{ my: 1 }} />
-  //             <Grid container spacing={1}>
-  //               <Grid item xs={4}><Typography variant="body2"><strong>Name:</strong></Typography></Grid>
-  //               <Grid item xs={8}><Typography>{selectedOrder.customerName}</Typography></Grid>
+//   const techProductDiscount =
+//     productDiscountAmount *
+//     ((selectedOrder.discountSplit?.technicianPercentage || 0) / 100);
 
-  //               <Grid item xs={4}><Typography variant="body2"><strong>Phone:</strong></Typography></Grid>
-  //               <Grid item xs={8}><Typography>{selectedOrder.customer?.contact?.phone}</Typography></Grid>
+//   const techMiscDiscount =
+//     miscDiscountAmount *
+//     ((selectedOrder.miscDiscountSplit?.technicianPercentage || 0) / 100);
 
-  //               <Grid item xs={4}><Typography variant="body2"><strong>Alt Phone:</strong></Typography></Grid>
-  //               <Grid item xs={8}><Typography>{selectedOrder.customer?.contact?.alternatePhone || 'N/A'}</Typography></Grid>
+//   /* -------------------- RENDER -------------------- */
 
-  //               <Grid item xs={4}><Typography variant="body2"><strong>Address:</strong></Typography></Grid>
-  //               <Grid item xs={8}>
-  //                 <Typography>
-  //                   {selectedOrder.customer?.address?.street || 'N/A'},<br />
-  //                   {selectedOrder.customer?.address?.city || 'N/A'},<br />
-  //                   {selectedOrder.customer?.address?.state || 'N/A'} - {selectedOrder.customer?.address?.pincode}
-  //                 </Typography>
-  //               </Grid>
-  //             </Grid>
-  //           </Grid>
-
-  //           {selectedOrder.products?.length > 0 && (
-  //             <Grid item xs={12}>
-  //               <Typography variant="subtitle2">Products</Typography>
-  //               <Divider sx={{ my: 1 }} />
-  //               <Grid container>
-  //                 {selectedOrder.products.map((item, index) => (
-  //                   <Grid container key={index} sx={{ py: 1, borderBottom: '1px solid rgba(0,0,0,0.12)' }}>
-  //                     <Grid item xs={7}>
-  //                       <Typography>
-  //                         {item.product?.name || 'Product'}
-  //                         {item.product?.price && ` (₹${item.product.price})`}
-  //                       </Typography>
-  //                     </Grid>
-  //                     <Grid item xs={2}>
-  //                       <Typography>Qty: {item.quantity}</Typography>
-  //                     </Grid>
-  //                     <Grid item xs={3} textAlign="right">
-  //                       <Typography>
-  //                         ₹{(item.product?.price || 0) * (item.quantity || 0)}
-  //                       </Typography>
-  //                     </Grid>
-  //                   </Grid>
-  //                 ))}
-  //               </Grid>
-  //             </Grid>
-  //           )}
-
-  //           <Grid item xs={12}>
-  //             <Typography variant="subtitle2">Financial Summary</Typography>
-  //             <Divider sx={{ my: 1 }} />
-  //             <Grid container>
-  //               <Grid item xs={9}><Typography>Product Total:</Typography></Grid>
-  //               <Grid item xs={3} textAlign="right">
-  //                 <Typography>₹{selectedOrder.products?.reduce((sum, p) => sum + (p.product?.price || 0) * (p.quantity || 0), 0).toFixed(2)}</Typography>
-  //               </Grid>
-
-  //               <Grid item xs={9}><Typography>Installation Charge:</Typography></Grid>
-  //               <Grid item xs={3} textAlign="right">
-  //                 <Typography>₹{selectedOrder.installationCharge?.toFixed(2) || '0.00'}</Typography>
-  //               </Grid>
-
-  //               <Grid item xs={9}><Typography>Miscellaneous Costs:</Typography></Grid>
-  //               <Grid item xs={3} textAlign="right">
-  //                 <Typography>₹{selectedOrder.miscellaneousCost?.toFixed(2) || '0.00'}</Typography>
-  //               </Grid>
-
-  //               <Grid item xs={9}><Typography>Discount ({selectedOrder.discountPercentage || 0}%):</Typography></Grid>
-  //               <Grid item xs={3} textAlign="right">
-  //                 <Typography color="error">-₹{(
-  //                   ((selectedOrder.products?.reduce((sum, p) => sum + (p.product?.price || 0) * (p.quantity || 0), 0)
-  //                     + (selectedOrder.installationCharge || 0)
-  //                     + (selectedOrder.miscellaneousCost || 0))
-  //                     * (selectedOrder.discountPercentage || 0) / 100
-  //                   ).toFixed(2))}</Typography>
-  //               </Grid>
-
-  //               <Grid item xs={9}><Typography variant="body1" fontWeight="bold">Total Amount:</Typography></Grid>
-  //               <Grid item xs={3} textAlign="right">
-  //                 <Typography variant="body1" fontWeight="bold">₹{selectedOrder.totalAmount?.toFixed(2) || '0.00'}</Typography>
-  //               </Grid>
-  //             </Grid>
-  //           </Grid>
-
-  //           <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, mt: 2 }}>
-  //             <Button variant="outlined" onClick={handleClose}>
-  //               Close
-  //             </Button>
-
-  //             {selectedOrder.status === 'draft' && (
-  //               <Button
-  //                 variant="contained"
-  //                 onClick={() => {
-  //                   handleClose();
-  //                   handleEditDraftOpen(selectedOrder);
-  //                 }}
-  //               >
-  //                 Edit Order
-  //               </Button>
-  //             )}
-
-  //             {selectedOrder.status === 'pending-approval' && (
-  //               <Button
-  //                 variant="contained"
-  //                 color="success"
-  //                 onClick={() => handleApproveOrder(selectedOrder.id)}
-  //               >
-  //                 Approve Order
-  //               </Button>
-  //             )}
-  //           </Grid>
-  //         </Grid>
-  //       )}
-  //     </Box>
-  //   </Modal>
-  // );
-
-//   const renderViewModal = () => {
-//   // Calculate discount amount
-//   const discountAmount = selectedOrder ? 
-//     calculateDiscountAmount(selectedOrder) : 
-//     0;
-  
 //   return (
 //     <Modal open={openViewModal} onClose={handleClose}>
-//       <Box sx={modalStyle}>
-//         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+//       <Box
+//         sx={{
+//           ...modalStyle,
+//           maxHeight: '90vh',
+//           display: 'flex',
+//           flexDirection: 'column'
+//         }}
+//       >
+//         {/* ================= HEADER ================= */}
+//         <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
 //           <Typography variant="h6">Order Details</Typography>
-//           <IconButton onClick={handleClose} size="small">
+//           <IconButton onClick={handleClose}>
 //             <CloseIcon />
 //           </IconButton>
 //         </Box>
 
-//         {selectedOrder && (
-//           <Grid container spacing={2} sx={{ mt: 1 }}>
+//         {/* ================= SCROLLABLE CONTENT ================= */}
+//         <Box sx={{ mt: 2, overflowY: 'auto', pr: 1 }}>
+//           <Grid container spacing={3}>
+
+//             {/* ================= ORDER INFO ================= */}
 //             <Grid item xs={12} md={6}>
 //               <Typography variant="subtitle2">Order Information</Typography>
 //               <Divider sx={{ my: 1 }} />
-//               <Grid container spacing={1}>
-//                 <Grid item xs={4}><Typography variant="body2"><strong>TCR:</strong></Typography></Grid>
-//                 <Grid item xs={8}><Typography>{selectedOrder.TCRNumber}</Typography></Grid>
 
-//                 <Grid item xs={4}><Typography variant="body2"><strong>Status:</strong></Typography></Grid>
-//                 <Grid item xs={8}>
+//               <InfoRow label="TCR" value={selectedOrder.TCRNumber} />
+//               <InfoRow
+//                 label="Status"
+//                 value={
 //                   <Chip
 //                     label={selectedOrder.status}
-//                     color={
-//                       selectedOrder.status === 'completed' ? 'success' :
-//                         selectedOrder.status === 'pending-approval' ? 'warning' :
-//                           'info'
-//                     }
 //                     size="small"
+//                     color={
+//                       selectedOrder.status === 'completed'
+//                         ? 'success'
+//                         : selectedOrder.status === 'pending-approval'
+//                         ? 'warning'
+//                         : 'info'
+//                     }
 //                   />
-//                 </Grid>
-
-//                 <Grid item xs={4}><Typography variant="body2"><strong>Company:</strong></Typography></Grid>
-//                 <Grid item xs={8}><Typography>{selectedOrder.companyName}</Typography></Grid>
-
-//                 <Grid item xs={4}><Typography variant="body2"><strong>Technician:</strong></Typography></Grid>
-//                 <Grid item xs={8}><Typography>{selectedOrder.technicianName}</Typography></Grid>
-
-//                 <Grid item xs={4}><Typography variant="body2"><strong>Installation:</strong></Typography></Grid>
-//                 <Grid item xs={8}><Typography>₹{selectedOrder.installationCharge?.toFixed(2) || '0.00'}</Typography></Grid>
-
-//                 <Grid item xs={4}><Typography variant="body2"><strong>Total:</strong></Typography></Grid>
-//                 <Grid item xs={8}><Typography variant="body1" fontWeight="bold">₹{selectedOrder.totalAmount?.toFixed(2) || '0.00'}</Typography></Grid>
-//               </Grid>
+//                 }
+//               />
+//               <InfoRow label="Company" value={selectedOrder.companyName} />
+//               <InfoRow label="Technician" value={selectedOrder.technicianName} />
+//               <InfoRow
+//                 label="Installation"
+//                 value={`₹${installationCharge.toFixed(2)}`}
+//               />
+//               <InfoRow
+//                 label="Free"
+//                 value={`${selectedOrder.freeInstallation ? "Yes" : "No"}`}
+//               />
+//               <InfoRow
+//                 label="Fitting"
+//                 value={
+//                   <>
+//                     ₹{fittingCharge.toFixed(2)}{' '}
+//                     <Typography
+//                       component="span"
+//                       variant="caption"
+//                       color="success.main"
+//                     >
+//                       (100% Technician)
+//                     </Typography>
+//                   </>
+//                 }
+//               />
 //             </Grid>
 
+//             {/* ================= CUSTOMER INFO ================= */}
 //             <Grid item xs={12} md={6}>
 //               <Typography variant="subtitle2">Customer Information</Typography>
 //               <Divider sx={{ my: 1 }} />
-//               <Grid container spacing={1}>
-//                 <Grid item xs={4}><Typography variant="body2"><strong>Name:</strong></Typography></Grid>
-//                 <Grid item xs={8}><Typography>{selectedOrder.customerName}</Typography></Grid>
 
-//                 <Grid item xs={4}><Typography variant="body2"><strong>Phone:</strong></Typography></Grid>
-//                 <Grid item xs={8}><Typography>{selectedOrder.customer?.contact?.phone}</Typography></Grid>
-
-//                 <Grid item xs={4}><Typography variant="body2"><strong>Alt Phone:</strong></Typography></Grid>
-//                 <Grid item xs={8}><Typography>{selectedOrder.customer?.contact?.alternatePhone || 'N/A'}</Typography></Grid>
-
-//                 <Grid item xs={4}><Typography variant="body2"><strong>Address:</strong></Typography></Grid>
-//                 <Grid item xs={8}>
-//                   <Typography>
-//                     {selectedOrder.customer?.address?.street || 'N/A'},<br />
-//                     {selectedOrder.customer?.address?.city || 'N/A'},<br />
-//                     {selectedOrder.customer?.address?.state || 'N/A'} - {selectedOrder.customer?.address?.pincode}
-//                   </Typography>
-//                 </Grid>
-//               </Grid>
+//               <InfoRow label="Name" value={selectedOrder.customerName} />
+//               <InfoRow
+//                 label="Phone"
+//                 value={selectedOrder.customer?.contact?.phone}
+//               />
+//               <InfoRow
+//                 label="Alt Phone"
+//                 value={
+//                   selectedOrder.customer?.contact?.alternatePhone || 'N/A'
+//                 }
+//               />
+//               <InfoRow
+//                 label="Address"
+//                 value={
+//                   <>
+//                     {selectedOrder.customer?.address?.street}
+//                     <br />
+//                     {selectedOrder.customer?.address?.city},{' '}
+//                     {selectedOrder.customer?.address?.state} -{' '}
+//                     {selectedOrder.customer?.address?.pincode}
+//                   </>
+//                 }
+//               />
 //             </Grid>
 
+//             {/* ================= PRODUCTS ================= */}
 //             {selectedOrder.products?.length > 0 && (
 //               <Grid item xs={12}>
 //                 <Typography variant="subtitle2">Products</Typography>
 //                 <Divider sx={{ my: 1 }} />
-//                 <Grid container>
-//                   {selectedOrder.products.map((item, index) => (
-//                     <Grid container key={index} sx={{ py: 1, borderBottom: '1px solid rgba(0,0,0,0.12)' }}>
-//                       <Grid item xs={7}>
-//                         <Typography>
-//                           {item.product?.name || 'Product'}
-//                           {item.product?.price && ` (₹${item.product.price})`}
-//                         </Typography>
-//                       </Grid>
-//                       <Grid item xs={2}>
-//                         <Typography>Qty: {item.quantity}</Typography>
-//                       </Grid>
-//                       <Grid item xs={3} textAlign="right">
-//                         <Typography>
-//                           ₹{(item.product?.price || 0) * (item.quantity || 0)}
-//                         </Typography>
-//                       </Grid>
+
+//                 {selectedOrder.products.map((item, idx) => (
+//                   <Grid container key={idx} sx={{ py: 1 }}>
+//                     <Grid item xs={6}>
+//                       <Typography>{item.product?.name}</Typography>
 //                     </Grid>
-//                   ))}
-//                 </Grid>
+//                     <Grid item xs={3}>
+//                       <Typography>Qty: {item.quantity}</Typography>
+//                     </Grid>
+//                     <Grid item xs={3} textAlign="right">
+//                       <Typography>
+//                         ₹
+//                         {(
+//                           (item.product?.price || 0) * item.quantity
+//                         ).toFixed(2)}
+//                       </Typography>
+//                     </Grid>
+//                   </Grid>
+//                 ))}
 //               </Grid>
 //             )}
 
-//             {/* Discount Distribution Section */}
-//             {selectedOrder.discountPercentage > 0 && (
+//             {/* ================= DISCOUNTS ================= */}
+//             {(productDiscountAmount > 0 || miscDiscountAmount > 0) && (
 //               <Grid item xs={12}>
 //                 <Typography variant="subtitle2">Discount Details</Typography>
 //                 <Divider sx={{ my: 1 }} />
-//                 <Grid container spacing={1}>
-//                   <Grid item xs={12} sm={4}>
-//                     <Typography variant="body2">
-//                       <strong>Discount Percentage:</strong> {selectedOrder.discountPercentage}%
+
+//                 {productDiscountAmount > 0 && (
+//                   <>
+//                     <Typography fontWeight="bold">
+//                       Product Discount
 //                     </Typography>
-//                   </Grid>
-//                   <Grid item xs={12} sm={4}>
-//                     <Typography variant="body2">
-//                       <strong>Discount Amount:</strong> ₹{discountAmount.toFixed(2)}
+//                     <InfoRow
+//                       label="Percentage"
+//                       value={`${selectedOrder.discountPercentage}%`}
+//                     />
+//                     <InfoRow
+//                       label="Amount"
+//                       value={`₹${productDiscountAmount.toFixed(2)}`}
+//                     />
+//                     <InfoRow
+//                       label="Technician Share"
+//                       value={`₹${techProductDiscount.toFixed(2)}`}
+//                     />
+//                   </>
+//                 )}
+
+//                 {miscDiscountAmount > 0 && (
+//                   <>
+//                     <Divider sx={{ my: 1 }} />
+//                     <Typography fontWeight="bold">
+//                       Miscellaneous Discount
 //                     </Typography>
-//                   </Grid>
-                  
-//                   {selectedOrder.discountApproved === 'approved' && selectedOrder.discountSplit && (
-//                     <>
-//                       <Grid item xs={12} sm={4}>
-//                         <Typography variant="body2">
-//                           <strong>Status:</strong> Approved
-//                         </Typography>
-//                       </Grid>
-//                       <Grid item xs={12} sm={4}>
-//                         <Typography variant="body2">
-//                           <strong>Owner Responsibility:</strong> {selectedOrder.discountSplit.ownerPercentage}%
-//                         </Typography>
-//                       </Grid>
-//                       <Grid item xs={12} sm={4}>
-//                         <Typography variant="body2">
-//                           <strong>Technician Responsibility:</strong> {selectedOrder.discountSplit.technicianPercentage}%
-//                         </Typography>
-//                       </Grid>
-//                       <Grid item xs={12} sm={4}>
-//                         <Typography variant="body2">
-//                           <strong>Technician Liability:</strong> ₹{(discountAmount * (selectedOrder.discountSplit.technicianPercentage / 100)).toFixed(2)}
-//                         </Typography>
-//                       </Grid>
-//                     </>
-//                   )}
-                  
-//                   {selectedOrder.discountApproved === 'rejected' && (
-//                     <Grid item xs={12}>
-//                       <Typography variant="body2" color="error">
-//                         <strong>Status:</strong> Rejected
-//                       </Typography>
-//                     </Grid>
-//                   )}
-                  
-//                   {selectedOrder.discountApproved === 'pending' && (
-//                     <Grid item xs={12}>
-//                       <Typography variant="body2" color="warning">
-//                         <strong>Status:</strong> Pending Approval
-//                       </Typography>
-//                     </Grid>
-//                   )}
-//                 </Grid>
+//                     <InfoRow
+//                       label="Percentage"
+//                       value={`${selectedOrder.miscDiscountPercentage}%`}
+//                     />
+//                     <InfoRow
+//                       label="Amount"
+//                       value={`₹${miscDiscountAmount.toFixed(2)}`}
+//                     />
+//                     <InfoRow
+//                       label="Technician Share"
+//                       value={`₹${techMiscDiscount.toFixed(2)}`}
+//                     />
+//                   </>
+//                 )}
+
+//                 <Divider sx={{ my: 1 }} />
+//                 <Typography
+//                   color={
+//                     selectedOrder.discountApproved === 'approved'
+//                       ? 'success.main'
+//                       : selectedOrder.discountApproved === 'rejected'
+//                       ? 'error.main'
+//                       : 'warning.main'
+//                   }
+//                 >
+//                   Status: {selectedOrder.discountApproved}
+//                 </Typography>
 //               </Grid>
 //             )}
 
+//             {/* ================= FINANCIAL SUMMARY ================= */}
 //             <Grid item xs={12}>
 //               <Typography variant="subtitle2">Financial Summary</Typography>
 //               <Divider sx={{ my: 1 }} />
-//               <Grid container>
-//                 <Grid item xs={9}><Typography>Product Total:</Typography></Grid>
-//                 <Grid item xs={3} textAlign="right">
-//                   <Typography>₹{selectedOrder.products?.reduce((sum, p) => sum + (p.product?.price || 0) * (p.quantity || 0), 0).toFixed(2)}</Typography>
-//                 </Grid>
 
-//                 <Grid item xs={9}><Typography>Installation Charge:</Typography></Grid>
-//                 <Grid item xs={3} textAlign="right">
-//                   <Typography>₹{selectedOrder.installationCharge?.toFixed(2) || '0.00'}</Typography>
-//                 </Grid>
+//               <SummaryRow label="Product Total" value={productTotal} />
+//               <SummaryRow label="Installation" value={installationCharge} />
+//               <SummaryRow label="Fitting (Tech Only)" value={fittingCharge} />
+//               <SummaryRow label="Misc Cost" value={miscCost} />
 
-//                 <Grid item xs={9}><Typography>Miscellaneous Costs:</Typography></Grid>
-//                 <Grid item xs={3} textAlign="right">
-//                   <Typography>₹{selectedOrder.miscellaneousCost?.toFixed(2) || '0.00'}</Typography>
-//                 </Grid>
+//               {productDiscountAmount > 0 && (
+//                 <SummaryRow
+//                   label="Product Discount"
+//                   value={-productDiscountAmount}
+//                 />
+//               )}
 
-//                 {selectedOrder.discountPercentage > 0 && (
-//                   <>
-//                     <Grid item xs={9}><Typography>Discount ({selectedOrder.discountPercentage || 0}%):</Typography></Grid>
-//                     <Grid item xs={3} textAlign="right">
-//                       <Typography color="error">-₹{discountAmount.toFixed(2)}</Typography>
-//                     </Grid>
-//                   </>
-//                 )}
+//               {miscDiscountAmount > 0 && (
+//                 <SummaryRow
+//                   label="Misc Discount"
+//                   value={-miscDiscountAmount}
+//                 />
+//               )}
 
-//                 <Grid item xs={9}><Typography variant="body1" fontWeight="bold">Total Amount:</Typography></Grid>
-//                 <Grid item xs={3} textAlign="right">
-//                   <Typography variant="body1" fontWeight="bold">₹{selectedOrder.totalAmount?.toFixed(2) || '0.00'}</Typography>
-//                 </Grid>
+//               <Divider sx={{ my: 1 }} />
+//               <SummaryRow
+//                 label="Net Amount"
+//                 value={selectedOrder.netAmount}
+//                 bold
+//               />
+//               <SummaryRow
+//                 label="Technician Cut"
+//                 value={selectedOrder.technicianCut}
+//               />
 
-//                 {selectedOrder.technicianCut !== undefined && (
-//                   <>
-//                     <Grid item xs={9}><Typography>Technician's Cut:</Typography></Grid>
-//                     <Grid item xs={3} textAlign="right">
-//                       <Typography color={selectedOrder.technicianCut < 0 ? "error" : "inherit"}>
-//                         ₹{selectedOrder.technicianCut?.toFixed(2) || '0.00'}
-//                       </Typography>
-//                     </Grid>
-//                   </>
-//                 )}
-
-//                 {selectedOrder.outstandingAmount !== undefined && selectedOrder.outstandingAmount > 0 && (
-//                   <>
-//                     <Grid item xs={9}><Typography>Outstanding Amount:</Typography></Grid>
-//                     <Grid item xs={3} textAlign="right">
-//                       <Typography color="error" fontWeight="bold">
-//                         ₹{selectedOrder.outstandingAmount?.toFixed(2)}
-//                       </Typography>
-//                     </Grid>
-//                   </>
-//                 )}
-//               </Grid>
+//               {selectedOrder.outstandingAmount > 0 && (
+//                 <SummaryRow
+//                   label="Outstanding"
+//                   value={selectedOrder.outstandingAmount}
+//                   error
+//                 />
+//               )}
 //             </Grid>
 
-//             <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, mt: 2 }}>
+//             {/* ================= ACTIONS ================= */}
+//             <Grid
+//               item
+//               xs={12}
+//               sx={{ display: 'flex', justifyContent: 'flex-end' }}
+//             >
 //               <Button variant="outlined" onClick={handleClose}>
 //                 Close
 //               </Button>
-
-//               {selectedOrder.status === 'draft' && (
-//                 <Button
-//                   variant="contained"
-//                   onClick={() => {
-//                     handleClose();
-//                     handleEditDraftOpen(selectedOrder);
-//                   }}
-//                 >
-//                   Edit Order
-//                 </Button>
-//               )}
-
-//               {/* {selectedOrder.status === 'pending-approval' && (
-//                 <Button
-//                   variant="contained"
-//                   color="success"
-//                   onClick={() => handleApproveOrder(selectedOrder.id)}
-//                 >
-//                   Approve Order
-//                 </Button>
-//               )} */}
 //             </Grid>
 //           </Grid>
-//         )}
+//         </Box>
 //       </Box>
 //     </Modal>
 //   );
@@ -1621,7 +1486,7 @@ const [miscDiscountSplit, setMiscDiscountSplit] = useState({
 const renderViewModal = () => {
   if (!selectedOrder) return null;
 
-  /* -------------------- CALCULATIONS -------------------- */
+  /* ================= CALCULATIONS ================= */
 
   const productTotal =
     selectedOrder.products?.reduce(
@@ -1635,271 +1500,294 @@ const renderViewModal = () => {
   const miscCost = Number(selectedOrder.miscellaneousCost) || 0;
 
   const productDiscountAmount =
-    (productTotal + installationCharge) * ((selectedOrder.discountPercentage || 0) / 100);
+    (productTotal + installationCharge) *
+    ((selectedOrder.discountPercentage || 0) / 100);
 
   const miscDiscountAmount =
-    miscCost * ((selectedOrder.miscDiscountPercentage || 0) / 100);
+    miscCost *
+    ((selectedOrder.miscDiscountPercentage || 0) / 100);
 
   const techProductDiscount =
     productDiscountAmount *
     ((selectedOrder.discountSplit?.technicianPercentage || 0) / 100);
 
+  const ownerProductDiscount =
+    productDiscountAmount *
+    ((selectedOrder.discountSplit?.ownerPercentage || 0) / 100);
+
   const techMiscDiscount =
     miscDiscountAmount *
     ((selectedOrder.miscDiscountSplit?.technicianPercentage || 0) / 100);
 
-  /* -------------------- RENDER -------------------- */
+  const ownerMiscDiscount =
+    miscDiscountAmount *
+    ((selectedOrder.miscDiscountSplit?.ownerPercentage || 0) / 100);
+
+  const totalRevenue =
+    productTotal + installationCharge + miscCost + fittingCharge;
+
+  const totalDiscount =
+    productDiscountAmount + miscDiscountAmount;
+
+  const finalAmount = totalRevenue - totalDiscount;
+
+  /* ================= UI ================= */
 
   return (
     <Modal open={openViewModal} onClose={handleClose}>
       <Box
         sx={{
           ...modalStyle,
-          maxHeight: '90vh',
-          display: 'flex',
-          flexDirection: 'column'
+          maxHeight: "92vh",
+          overflowY: "auto",
+          p: 3
         }}
       >
+
         {/* ================= HEADER ================= */}
-        <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-          <Typography variant="h6">Order Details</Typography>
+        <Box display="flex" justifyContent="space-between" mb={2}>
+          <Typography variant="h5" fontWeight="bold">
+            Order Overview
+          </Typography>
           <IconButton onClick={handleClose}>
             <CloseIcon />
           </IconButton>
         </Box>
 
-        {/* ================= SCROLLABLE CONTENT ================= */}
-        <Box sx={{ mt: 2, overflowY: 'auto', pr: 1 }}>
-          <Grid container spacing={3}>
+        <Grid container spacing={3}>
 
-            {/* ================= ORDER INFO ================= */}
-            <Grid item xs={12} md={6}>
-              <Typography variant="subtitle2">Order Information</Typography>
-              <Divider sx={{ my: 1 }} />
+          {/* ================= ORDER & CUSTOMER INFO ================= */}
+<Grid item xs={12}>
+  <Accordion defaultExpanded>
+    <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+      <Typography fontWeight="bold">
+        Order & Customer Details
+      </Typography>
+    </AccordionSummary>
 
-              <InfoRow label="TCR" value={selectedOrder.TCRNumber} />
-              <InfoRow
-                label="Status"
-                value={
-                  <Chip
-                    label={selectedOrder.status}
-                    size="small"
-                    color={
-                      selectedOrder.status === 'completed'
-                        ? 'success'
-                        : selectedOrder.status === 'pending-approval'
-                        ? 'warning'
-                        : 'info'
-                    }
-                  />
-                }
-              />
-              <InfoRow label="Company" value={selectedOrder.companyName} />
-              <InfoRow label="Technician" value={selectedOrder.technicianName} />
-              <InfoRow
-                label="Installation"
-                value={`₹${installationCharge.toFixed(2)}`}
-              />
-              <InfoRow
-                label="Free"
-                value={`${selectedOrder.freeInstallation ? "Yes" : "No"}`}
-              />
-              <InfoRow
-                label="Fitting"
-                value={
-                  <>
-                    ₹{fittingCharge.toFixed(2)}{' '}
-                    <Typography
-                      component="span"
-                      variant="caption"
-                      color="success.main"
-                    >
-                      (100% Technician)
-                    </Typography>
-                  </>
-                }
-              />
-            </Grid>
+    <AccordionDetails>
+      <Grid container spacing={3}>
 
-            {/* ================= CUSTOMER INFO ================= */}
-            <Grid item xs={12} md={6}>
-              <Typography variant="subtitle2">Customer Information</Typography>
-              <Divider sx={{ my: 1 }} />
+        {/* ORDER INFO */}
+        <Grid item xs={12} md={6}>
+          <Typography fontWeight="600" mb={1}>
+            Order Info
+          </Typography>
 
-              <InfoRow label="Name" value={selectedOrder.customerName} />
-              <InfoRow
-                label="Phone"
-                value={selectedOrder.customer?.contact?.phone}
-              />
-              <InfoRow
-                label="Alt Phone"
-                value={
-                  selectedOrder.customer?.contact?.alternatePhone || 'N/A'
-                }
-              />
-              <InfoRow
-                label="Address"
-                value={
-                  <>
-                    {selectedOrder.customer?.address?.street}
-                    <br />
-                    {selectedOrder.customer?.address?.city},{' '}
-                    {selectedOrder.customer?.address?.state} -{' '}
-                    {selectedOrder.customer?.address?.pincode}
-                  </>
-                }
-              />
-            </Grid>
+          <InfoRow label="TCR Number" value={selectedOrder.TCRNumber} />
+          <InfoRow label="Status" value={selectedOrder.status} />
+          <InfoRow label="Order Date"
+            value={new Date(selectedOrder.orderDate).toLocaleDateString()}
+          />
+          <InfoRow label="Free Installation"
+            value={selectedOrder.freeInstallation ? "Yes" : "No"}
+          />
+        </Grid>
 
-            {/* ================= PRODUCTS ================= */}
-            {selectedOrder.products?.length > 0 && (
-              <Grid item xs={12}>
-                <Typography variant="subtitle2">Products</Typography>
-                <Divider sx={{ my: 1 }} />
+        {/* CUSTOMER INFO */}
+        <Grid item xs={12} md={6}>
+          <Typography fontWeight="600" mb={1}>
+            Customer Info
+          </Typography>
 
-                {selectedOrder.products.map((item, idx) => (
-                  <Grid container key={idx} sx={{ py: 1 }}>
-                    <Grid item xs={6}>
-                      <Typography>{item.product?.name}</Typography>
-                    </Grid>
-                    <Grid item xs={3}>
-                      <Typography>Qty: {item.quantity}</Typography>
-                    </Grid>
-                    <Grid item xs={3} textAlign="right">
-                      <Typography>
-                        ₹
-                        {(
-                          (item.product?.price || 0) * item.quantity
-                        ).toFixed(2)}
-                      </Typography>
-                    </Grid>
-                  </Grid>
-                ))}
-              </Grid>
-            )}
+          <InfoRow label="Name" value={selectedOrder.customer?.name} />
+          <InfoRow label="Phone" value={selectedOrder.customer?.contact?.phone} />
+          <InfoRow
+            label="Address"
+            value={`${selectedOrder.customer?.address?.street}, 
+            ${selectedOrder.customer?.address?.city}, 
+            ${selectedOrder.customer?.address?.state} - 
+            ${selectedOrder.customer?.address?.pincode}`}
+          />
+        </Grid>
 
-            {/* ================= DISCOUNTS ================= */}
-            {(productDiscountAmount > 0 || miscDiscountAmount > 0) && (
-              <Grid item xs={12}>
-                <Typography variant="subtitle2">Discount Details</Typography>
-                <Divider sx={{ my: 1 }} />
+        {/* TECHNICIAN INFO */}
+        <Grid item xs={12} md={6}>
+          <Typography fontWeight="600" mb={1}>
+            Technician Info
+          </Typography>
 
-                {productDiscountAmount > 0 && (
-                  <>
-                    <Typography fontWeight="bold">
-                      Product Discount
-                    </Typography>
-                    <InfoRow
-                      label="Percentage"
-                      value={`${selectedOrder.discountPercentage}%`}
-                    />
-                    <InfoRow
-                      label="Amount"
-                      value={`₹${productDiscountAmount.toFixed(2)}`}
-                    />
-                    <InfoRow
-                      label="Technician Share"
-                      value={`₹${techProductDiscount.toFixed(2)}`}
-                    />
-                  </>
-                )}
+          <InfoRow label="Name" value={selectedOrder.technician?.name} />
+          <InfoRow label="Phone" value={selectedOrder.technician?.phone} />
+          <InfoRow label="Service Rate" value={`₹${selectedOrder.technician?.serviceRate}`} />
+          <InfoRow label="Misc. Share" value={`${selectedOrder.technician?.miscShare}%`} />
 
-                {miscDiscountAmount > 0 && (
-                  <>
-                    <Divider sx={{ my: 1 }} />
-                    <Typography fontWeight="bold">
-                      Miscellaneous Discount
-                    </Typography>
-                    <InfoRow
-                      label="Percentage"
-                      value={`${selectedOrder.miscDiscountPercentage}%`}
-                    />
-                    <InfoRow
-                      label="Amount"
-                      value={`₹${miscDiscountAmount.toFixed(2)}`}
-                    />
-                    <InfoRow
-                      label="Technician Share"
-                      value={`₹${techMiscDiscount.toFixed(2)}`}
-                    />
-                  </>
-                )}
+        </Grid>
 
-                <Divider sx={{ my: 1 }} />
-                <Typography
-                  color={
-                    selectedOrder.discountApproved === 'approved'
-                      ? 'success.main'
-                      : selectedOrder.discountApproved === 'rejected'
-                      ? 'error.main'
-                      : 'warning.main'
-                  }
-                >
-                  Status: {selectedOrder.discountApproved}
+        {/* COMPANY INFO */}
+        <Grid item xs={12} md={6}>
+          <Typography fontWeight="600" mb={1}>
+            Company Info
+          </Typography>
+
+          <InfoRow label="Company" value={selectedOrder.company?.name} />
+          <InfoRow label="Base Installation"
+            value={`₹${selectedOrder.company?.installationCharge}`}
+          />
+        </Grid>
+
+      </Grid>
+    </AccordionDetails>
+  </Accordion>
+</Grid>
+
+
+          {/* ================= PRODUCTS ================= */}
+          <Grid item xs={12}>
+            <Typography variant="h6">Products</Typography>
+            <Divider sx={{ mb: 1 }} />
+
+            {selectedOrder.products?.map((item, i) => (
+              <Box
+                key={i}
+                sx={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  py: 0.5
+                }}
+              >
+                <Typography>
+                  {item.product?.name} × {item.quantity}
                 </Typography>
-              </Grid>
-            )}
+                <Typography fontWeight="500">
+                  ₹{(
+                    (item.product?.price || 0) * item.quantity
+                  ).toFixed(2)}
+                </Typography>
+              </Box>
+            ))}
 
-            {/* ================= FINANCIAL SUMMARY ================= */}
-            <Grid item xs={12}>
-              <Typography variant="subtitle2">Financial Summary</Typography>
+            <Divider sx={{ my: 1 }} />
+
+            <Box display="flex" justifyContent="space-between">
+              <Typography fontWeight="bold">Product Total</Typography>
+              <Typography fontWeight="bold">
+                ₹{productTotal.toFixed(2)}
+              </Typography>
+            </Box>
+          </Grid>
+
+          {/* ================= REVENUE BLOCK ================= */}
+          <Grid item xs={12} md={6}>
+            <Box sx={{ p: 2, bgcolor: "#f5f7fa", borderRadius: 2 }}>
+              <Typography fontWeight="bold" mb={1}>
+                Revenue Breakdown
+              </Typography>
+
+              <FinanceRow label="Products" value={productTotal} />
+              <FinanceRow label="Installation" value={installationCharge} />
+              <FinanceRow label="Miscellaneous" value={miscCost} />
+              <FinanceRow label="Fitting (Tech Only)" value={fittingCharge} />
+
               <Divider sx={{ my: 1 }} />
 
-              <SummaryRow label="Product Total" value={productTotal} />
-              <SummaryRow label="Installation" value={installationCharge} />
-              <SummaryRow label="Fitting (Tech Only)" value={fittingCharge} />
-              <SummaryRow label="Misc Cost" value={miscCost} />
-
-              {productDiscountAmount > 0 && (
-                <SummaryRow
-                  label="Product Discount"
-                  value={-productDiscountAmount}
-                />
-              )}
-
-              {miscDiscountAmount > 0 && (
-                <SummaryRow
-                  label="Misc Discount"
-                  value={-miscDiscountAmount}
-                />
-              )}
-
-              <Divider sx={{ my: 1 }} />
-              <SummaryRow
-                label="Net Amount"
-                value={selectedOrder.netAmount}
+              <FinanceRow
+                label="Total Revenue"
+                value={totalRevenue}
                 bold
               />
-              <SummaryRow
+            </Box>
+          </Grid>
+
+          {/* ================= DISCOUNT BLOCK ================= */}
+          <Grid item xs={12} md={6}>
+            <Box sx={{ p: 2, bgcolor: "#fff4f4", borderRadius: 2 }}>
+              <Typography fontWeight="bold" mb={1}>
+                Discount Distribution
+              </Typography>
+
+              <FinanceRow
+                label="Product Discount"
+                value={-productDiscountAmount}
+              />
+              <FinanceRow
+                label="Misc Discount"
+                value={-miscDiscountAmount}
+              />
+
+              <Divider sx={{ my: 1 }} />
+
+              <Typography variant="body2" fontWeight="600">
+                Technician Pays:
+              </Typography>
+              <FinanceRow
+                label="Product Share"
+                value={-techProductDiscount}
+              />
+              <FinanceRow
+                label="Misc Share"
+                value={-techMiscDiscount}
+              />
+
+              <Divider sx={{ my: 1 }} />
+
+              <Typography variant="body2" fontWeight="600">
+                Owner Pays:
+              </Typography>
+              <FinanceRow
+                label="Product Share"
+                value={-ownerProductDiscount}
+              />
+              <FinanceRow
+                label="Misc Share"
+                value={-ownerMiscDiscount}
+              />
+            </Box>
+          </Grid>
+
+          {/* ================= FINAL SUMMARY ================= */}
+          <Grid item xs={12}>
+            <Box
+              sx={{
+                p: 3,
+                bgcolor: "#e8f5e9",
+                borderRadius: 2
+              }}
+            >
+              <Typography variant="h6" fontWeight="bold" mb={1}>
+                Final Settlement
+              </Typography>
+
+              <FinanceRow
+                label="Final Amount After Discount"
+                value={finalAmount}
+                bold
+              />
+
+              <FinanceRow
                 label="Technician Cut"
                 value={selectedOrder.technicianCut}
               />
 
+              <FinanceRow
+                label="Company Cut"
+                value={selectedOrder.companyCut}
+              />
+
               {selectedOrder.outstandingAmount > 0 && (
-                <SummaryRow
+                <FinanceRow
                   label="Outstanding"
                   value={selectedOrder.outstandingAmount}
                   error
                 />
               )}
-            </Grid>
-
-            {/* ================= ACTIONS ================= */}
-            <Grid
-              item
-              xs={12}
-              sx={{ display: 'flex', justifyContent: 'flex-end' }}
-            >
-              <Button variant="outlined" onClick={handleClose}>
-                Close
-              </Button>
-            </Grid>
+            </Box>
           </Grid>
-        </Box>
+
+          {/* ================= CLOSE ================= */}
+          <Grid item xs={12} textAlign="right">
+            <Button variant="contained" onClick={handleClose}>
+              Close
+            </Button>
+          </Grid>
+
+        </Grid>
       </Box>
     </Modal>
   );
 };
+
+
 
 
 
@@ -2504,6 +2392,24 @@ const SummaryRow = ({ label, value, bold = false, error = false }) => (
     </Grid>
   </Grid>
 );
+
+const FinanceRow = ({ label, value, bold, error }) => (
+  <Box display="flex" justifyContent="space-between" py={0.5}>
+    <Typography
+      fontWeight={bold ? "bold" : 400}
+      color={error ? "error.main" : "text.primary"}
+    >
+      {label}
+    </Typography>
+    <Typography
+      fontWeight={bold ? "bold" : 500}
+      color={value < 0 ? "error.main" : error ? "error.main" : "text.primary"}
+    >
+      ₹{Number(value).toFixed(2)}
+    </Typography>
+  </Box>
+);
+
 
 
 export default OrderList;

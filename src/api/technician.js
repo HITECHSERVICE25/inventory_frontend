@@ -16,13 +16,15 @@ api.interceptors.request.use(config => {
 export default {
   createTechnician: data => api.post('/', data),
   updateTechnician: (id, data) => api.put('/' + id, data),
-  getTechnicians: ({ page = 1, limit = 10, companyId } = {}) => 
-  api.get('/', { 
-    params: { 
-      page, 
+ getTechnicians: ({ page = 1, limit = 10, companyId, isBlocked } = {}) =>
+  api.get('/', {
+    params: {
+      page,
       limit,
-      ...(companyId && { companies: companyId })  // Add company ID if provided
+      ...(companyId && { companies: companyId }),
+      ...(isBlocked !== undefined && { isBlocked }) // ensures false is also sent
     }
   }),
+
   updateBlockedStatus: (id, data) => api.patch('/' + id + '/block', data)
 };

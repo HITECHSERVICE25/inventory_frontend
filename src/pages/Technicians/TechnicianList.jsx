@@ -46,21 +46,23 @@ const TechnicianList = () => {
     const [selectedTechnician, setSelectedTechnician] = useState(null);
 
     const [formData, setFormData] = useState({
-        name: '',
-        phone: '',
-        email: '',
-        address: {
-            street: '',
-            city: '',
-            state: '',
-            pincode: ''
-        },
-        aadhaar: '',
-        pan: '',
-        serviceRate: 0,
-        companies: [],
-        isBlocked: false
-    });
+    name: '',
+    phone: '',
+    email: '',
+    address: {
+        street: '',
+        city: '',
+        state: '',
+        pincode: ''
+    },
+    aadhaar: '',
+    pan: '',
+    serviceRate: 0,
+    miscShare: 0, // ✅ NEW
+    companies: [],
+    isBlocked: false
+});
+
 
     useEffect(() => {
         const fetchData = async () => {
@@ -89,21 +91,23 @@ const TechnicianList = () => {
 
     const handleCreateOpen = () => {
         setFormData({
-            name: '',
-            phone: '',
-            email: '',
-            address: {
-                street: '',
-                city: '',
-                state: '',
-                pincode: ''
-            },
-            aadhaar: '',
-            pan: '',
-            serviceRate: 0,
-            companies: [],
-            isBlocked: false
-        });
+    name: '',
+    phone: '',
+    email: '',
+    address: {
+        street: '',
+        city: '',
+        state: '',
+        pincode: ''
+    },
+    aadhaar: '',
+    pan: '',
+    serviceRate: 0,
+    miscShare: 0, // ✅ NEW
+    companies: [],
+    isBlocked: false
+});
+
         setFormErrors({});
         setOpenCreateModal(true);
     };
@@ -192,6 +196,12 @@ const TechnicianList = () => {
         if (formData.serviceRate <= 0) {
             errors.serviceRate = 'Must be positive number';
         }
+
+        // Misc share validation (0–100)
+if (formData.miscShare < 0 || formData.miscShare > 100) {
+    errors.miscShare = 'Must be between 0 and 100';
+}
+
 
         // Companies validation
         if (formData.companies.length === 0) {
@@ -452,6 +462,23 @@ const handleCreate = async (e) => {
                     helperText={formErrors.pan}
                 />
             </Grid>
+            <Grid item xs={12} sm={6} md={4}>
+    <TextField
+        label="Misc Share (%)"
+        name="miscShare"
+        type="number"
+        value={formData.miscShare}
+        onChange={handleChange}
+        fullWidth
+        InputProps={{
+            inputProps: { min: 0, max: 100, step: 0.01 },
+            sx: { maxWidth: '150px' }
+        }}
+        error={!!formErrors.miscShare}
+        helperText={formErrors.miscShare}
+    />
+</Grid>
+
             <Grid item xs={12} sm={6} md={4}>
                 <TextField
                     label="Service Rate (₹)*"
