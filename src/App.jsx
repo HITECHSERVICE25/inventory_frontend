@@ -17,6 +17,10 @@ import InstallationPage from './pages/Installation/InstallationPage';
 import CommissionList from './pages/Commission/CommisionList';
 import OrderList from './pages/Order/OrderList';
 import PaymentList from './pages/Payment/PaymentList';
+import PublicRoute from './components/Auth/PublicRoute';
+
+
+
 
 function App() {
   return (
@@ -24,10 +28,21 @@ function App() {
       <BrowserRouter>
         <Routes>
           {/* Public routes */}
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/reset-password/:token" element={<ResetPassword />} />
+
+
+           <Route
+        path="/login"
+        element={
+          <PublicRoute>
+            <Login />
+          </PublicRoute>
+        }
+      />
+
+          {/* <Route path="/login" element={<Login />} /> */}
+          {/* <Route path="/register" element={<Register />} /> */}
+          {/* <Route path="/forgot-password" element={<ForgotPassword />} /> */}
+          {/* <Route path="/reset-password/:token" element={<ResetPassword />} /> */}
           
           {/* Protected routes with layout */}
           <Route element={<ProtectedRoute />}>

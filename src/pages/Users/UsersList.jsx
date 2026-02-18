@@ -22,6 +22,12 @@ import api from '../../api/auth';
 import { DataGrid } from '@mui/x-data-grid';
 import { Cancel, Edit, Save } from '@mui/icons-material';
 
+import InputAdornment from "@mui/material/InputAdornment";
+
+import Visibility from "@mui/icons-material/Visibility";
+import VisibilityOff from "@mui/icons-material/VisibilityOff";
+
+
 const UsersList = () => {
   const { user } = useAuth();
   const [users, setUsers] = useState([]);
@@ -37,6 +43,13 @@ const UsersList = () => {
   });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+  const [showPassword, setShowPassword] = useState(false);
+
+const handleTogglePassword = () => {
+  setShowPassword((prev) => !prev);
+};
+
 
       const fetchUsers = async () => {
       try {
@@ -75,9 +88,18 @@ const UsersList = () => {
       const res = await api.getUsers();
       setUsers(res.data.data.map((el, i) => ({...el, sl_no: i + 1, id: el._id})));
     } catch (err) {
-        console.log(err);
-      setError(err.response?.data?.error?.message || err.response?.data?.error?.details[0]?.message || 'Failed to create user');
-    }
+  const apiError = err.response?.data?.error;
+
+  if (apiError?.details?.length > 0) {
+    // Show first validation error
+    setError(apiError.details[0].message);
+  } else if (apiError?.message) {
+    setError(apiError.message);
+  } else {
+    setError("Failed to update user");
+  }
+}
+
   };
 
   const handleOpenEditModal = (userData, params) => {
@@ -116,8 +138,18 @@ const UsersList = () => {
         fetchUsers();
       }, 1000);
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to update user');
-    }
+  const apiError = err.response?.data?.error;
+
+  if (apiError?.details?.length > 0) {
+    // Show first validation error
+    setError(apiError.details[0].message);
+  } else if (apiError?.message) {
+    setError(apiError.message);
+  } else {
+    setError("Failed to update user");
+  }
+}
+
   };
 
   if (loading) return <CircularProgress />;
@@ -128,9 +160,9 @@ const UsersList = () => {
 
 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
               <Typography variant="h5">Users</Typography>
-              <Button variant="contained" onClick={handleOpenModal}>
+              {user.role == "admin" && <Button variant="contained" onClick={handleOpenModal}>
     Add User
-  </Button>
+  </Button>}
             </Box>
 
       <DataGrid
@@ -141,7 +173,7 @@ const UsersList = () => {
           { field: 'email', headerName: 'Email', width: 250 },
           { field: 'role', headerName: 'Role', width: 150 },
           { field: 'createdAt', headerName: 'Date', width: 200, valueFormatter: (params) => new Date(params).toLocaleDateString() },
-        {
+        user.role == "admin" && {
       field: 'actions',
       headerName: 'Actions',
       width: 200,
@@ -183,6 +215,8 @@ const UsersList = () => {
           boxShadow: 24,
           p: 4,
         }}>
+          {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+
           <form onSubmit={handleSubmit}>
             <TextField
               label="Name"
@@ -204,15 +238,29 @@ const UsersList = () => {
               sx={{ mb: 2 }}
             />
             <TextField
-              label="Password"
-              name="password"
-              type="password"
-              value={formData.password}
-              onChange={handleChange}
-              fullWidth
-              required
-              sx={{ mb: 2 }}
-            />
+  label="Password"
+  name="password"
+  type={showPassword ? "text" : "password"}
+  value={formData.password}
+  onChange={handleChange}
+  fullWidth
+  required
+  sx={{ mb: 2 }}
+  InputProps={{
+    endAdornment: (
+      <InputAdornment position="end">
+        <IconButton
+          onClick={handleTogglePassword}
+          edge="end"
+          tabIndex={-1}
+        >
+          {showPassword ? <VisibilityOff /> : <Visibility />}
+        </IconButton>
+      </InputAdornment>
+    ),
+  }}
+/>
+
             <FormControl fullWidth sx={{ mb: 2 }}>
               <InputLabel>Role</InputLabel>
               <Select
@@ -226,7 +274,6 @@ const UsersList = () => {
                 <MenuItem value="admin">Admin</MenuItem>
               </Select>
             </FormControl>
-            {error && <div style={{ color: 'red' }}>{error}</div>}
             <Button type="submit" variant="contained" fullWidth>
               Create User
             </Button>
@@ -237,6 +284,8 @@ const UsersList = () => {
       <Dialog open={openEditModal} onClose={handleCloseEditModal} maxWidth="sm" fullWidth>
         <DialogTitle>Edit User</DialogTitle>
         <DialogContent>
+          {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+            {success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}
           <form onSubmit={handleEditSubmit}>
             <TextField
               label="Name"
@@ -258,15 +307,29 @@ const UsersList = () => {
               sx={{ mb: 2 }}
             />
             <TextField
-              label="New Password (leave blank to keep current)"
-              name="password"
-              type="password"
-              value={formData.password}
-              onChange={handleChange}
-              fullWidth
-              sx={{ mb: 2 }}
-              helperText="Leave empty if you don't want to change the password"
-            />
+  label="New Password (leave blank to keep current)"
+  name="password"
+  type={showPassword ? "text" : "password"}
+  value={formData.password}
+  onChange={handleChange}
+  fullWidth
+  sx={{ mb: 2 }}
+  helperText="Leave empty if you don't want to change the password"
+  InputProps={{
+    endAdornment: (
+      <InputAdornment position="end">
+        <IconButton
+          onClick={handleTogglePassword}
+          edge="end"
+          tabIndex={-1}
+        >
+          {showPassword ? <VisibilityOff /> : <Visibility />}
+        </IconButton>
+      </InputAdornment>
+    ),
+  }}
+/>
+
             <FormControl fullWidth sx={{ mb: 2 }}>
               <InputLabel>Role</InputLabel>
               <Select
@@ -280,8 +343,7 @@ const UsersList = () => {
                 <MenuItem value="admin">Admin</MenuItem>
               </Select>
             </FormControl>
-            {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-            {success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}
+            
           </form>
         </DialogContent>
         <DialogActions>

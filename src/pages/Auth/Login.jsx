@@ -4,10 +4,23 @@ import { TextField, Button, Link, Box, Typography } from '@mui/material';
 import { useAuth } from '../../context/AuthContext';
 import { AuthFormWrapper } from '../../components/Auth/AuthFormWrapper';
 import { useNavigate } from 'react-router-dom';
+import { useState } from "react";
+import InputAdornment from "@mui/material/InputAdornment";
+import IconButton from "@mui/material/IconButton";
+import Visibility from "@mui/icons-material/Visibility";
+import VisibilityOff from "@mui/icons-material/VisibilityOff";
+
 
 const Login = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
+
+  const [showPassword, setShowPassword] = useState(false);
+
+  const handleTogglePassword = () => {
+    setShowPassword((prev) => !prev);
+  };
+
 
   const formik = useFormik({
     initialValues: { email: '', password: '' },
@@ -39,7 +52,7 @@ const Login = () => {
           helperText={formik.touched.email && formik.errors.email}
         />
         
-        <TextField
+        {/* <TextField
           fullWidth
           label="Password"
           type="password"
@@ -48,7 +61,32 @@ const Login = () => {
           {...formik.getFieldProps('password')}
           error={formik.touched.password && Boolean(formik.errors.password)}
           helperText={formik.touched.password && formik.errors.password}
-        />
+        /> */}
+
+        <TextField
+  fullWidth
+  label="Password"
+  type={showPassword ? "text" : "password"}
+  name="password"
+  margin="normal"
+  {...formik.getFieldProps("password")}
+  error={formik.touched.password && Boolean(formik.errors.password)}
+  helperText={formik.touched.password && formik.errors.password}
+  InputProps={{
+    endAdornment: (
+      <InputAdornment position="end">
+        <IconButton
+          onClick={handleTogglePassword}
+          edge="end"
+          tabIndex={-1}
+        >
+          {showPassword ? <VisibilityOff /> : <Visibility />}
+        </IconButton>
+      </InputAdornment>
+    ),
+  }}
+/>
+
 
         {formik.errors.submit && (
           <Typography color="error" sx={{ mt: 1 }}>
@@ -65,7 +103,7 @@ const Login = () => {
           Sign In
         </Button>
 
-        <Box sx={{ textAlign: 'center' }}>
+        {/* <Box sx={{ textAlign: 'center' }}>
           <Link href="/register" variant="body2">
             Don't have an account? Sign Up
           </Link>
@@ -73,7 +111,7 @@ const Login = () => {
           <Link href="/forgot-password" variant="body2">
             Forgot password?
           </Link>
-        </Box>
+        </Box> */}
       </form>
     </AuthFormWrapper>
   );
