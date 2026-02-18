@@ -22,7 +22,8 @@ import {
   Paper,
   Accordion,
   AccordionSummary,
-  AccordionDetails
+  AccordionDetails,
+  InputAdornment
 } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
 import EditIcon from '@mui/icons-material/Edit';
@@ -72,17 +73,17 @@ const OrderList = () => {
   const [products, setProducts] = useState([]);
   const [loadingTechnicians, setLoadingTechnicians] = useState(false);
 
-  //const [discountSplit, setDiscountSplit] = useState({ owner: 100, technician: 0 });
+  const [discountSplit, setDiscountSplit] = useState({ owner: 100, technician: 0 });
 
-  const [productDiscountSplit, setProductDiscountSplit] = useState({
-  owner: 100,
-  technician: 0
-});
+//   const [productDiscountSplit, setProductDiscountSplit] = useState({
+//   owner: 100,
+//   technician: 0
+// });
 
-const [miscDiscountSplit, setMiscDiscountSplit] = useState({
-  owner: 100,
-  technician: 0
-});
+// const [miscDiscountSplit, setMiscDiscountSplit] = useState({
+//   owner: 100,
+//   technician: 0
+// });
 
 
   // Form States
@@ -104,10 +105,12 @@ const [miscDiscountSplit, setMiscDiscountSplit] = useState({
   products: [],
   miscellaneousCost: 0,
   fittingCost: 0,
-
-  productDiscountPercentage: 0,
-  miscDiscountPercentage: 0
+  discount: {
+    type: 'percentage', // default
+    value: 0
+  }
 });
+
 
 
 
@@ -115,8 +118,8 @@ const [miscDiscountSplit, setMiscDiscountSplit] = useState({
   const handleDiscountOpen = (order) => {
     setSelectedOrder(order);
     // Initialize with 100% owner responsibility by default
-    setProductDiscountSplit({ owner: 100, technician: 0 });
-    setMiscDiscountSplit({ owner: 100, technician: 0 });
+    setDiscountSplit({ owner: 100, technician: 0 });
+    // setMiscDiscountSplit({ owner: 100, technician: 0 });
 
     setOpenDiscountModal(true);
   };
@@ -165,48 +168,27 @@ const [miscDiscountSplit, setMiscDiscountSplit] = useState({
 
 
   const handleApproveDiscount = async () => {
-    try {
-      setLoading(true);
-      // await orderApi.approveDiscount(selectedOrder.id, {
-      //   ownerPercentage: discountSplit.owner,
-      //   technicianPercentage: discountSplit.technician
-      // });
+  try {
+    setLoading(true);
 
-      await orderApi.approveDiscount(selectedOrder.id, {
-  productSplit: {
-    ownerPercentage: productDiscountSplit.owner,
-    technicianPercentage: productDiscountSplit.technician
-  },
-  miscSplit: {
-    ownerPercentage: miscDiscountSplit.owner,
-    technicianPercentage: miscDiscountSplit.technician
+    await orderApi.approveDiscount(selectedOrder.id, {
+      ownerPercentage: discountSplit.owner,
+      technicianPercentage: discountSplit.technician
+    });
+
+    fetchData();
+    setOpenDiscountModal(false);
+
+  } catch (err) {
+    setError(
+      err.response?.data?.error?.message ||
+      'Failed to approve discount'
+    );
+  } finally {
+    setLoading(false);
   }
-});
+};
 
-
-      // Update local state
-      // setOrders(prevOrders =>
-      //   prevOrders.map(order =>
-      //     order.id === selectedOrder.id
-      //       ? {
-      //         ...order,
-      //         status: 'completed',
-      //         discountApproved: 'approved'
-      //       }
-      //       : order
-      //   )
-      // );
-
-      fetchData();
-
-      setOpenDiscountModal(false);
-    } catch (err) {
-      setError(err.response?.data?.error?.message || 'Failed to approve discount');
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleRejectDiscount = async () => {
     try {
@@ -476,8 +458,10 @@ const [miscDiscountSplit, setMiscDiscountSplit] = useState({
     setCompleteForm({
       products: order.products || [],
       miscellaneousCost: order.miscellaneousCost || 0,
-      productDiscountPercentage: order.discountPercentage,
-  miscDiscountPercentage: order.miscDiscountPercentage
+      discount: {
+    type: order.discount.type, // default
+    value: order.discount.value
+  }
 
     });
     setOpenCompleteModal(true);
@@ -652,8 +636,7 @@ const [miscDiscountSplit, setMiscDiscountSplit] = useState({
   fittingCost: completeForm.fittingCost,
 
 
-  productDiscountPercentage: completeForm.productDiscountPercentage,
-  miscDiscountPercentage: completeForm.miscDiscountPercentage,
+discount: completeForm.discount,
 
   status: 'completed'
 };
@@ -1199,11 +1182,10 @@ const [miscDiscountSplit, setMiscDiscountSplit] = useState({
     </Modal>
   );
 
-
 // const renderViewModal = () => {
 //   if (!selectedOrder) return null;
 
-//   /* -------------------- CALCULATIONS -------------------- */
+//   /* ================= CALCULATIONS ================= */
 
 //   const productTotal =
 //     selectedOrder.products?.reduce(
@@ -1217,271 +1199,293 @@ const [miscDiscountSplit, setMiscDiscountSplit] = useState({
 //   const miscCost = Number(selectedOrder.miscellaneousCost) || 0;
 
 //   const productDiscountAmount =
-//     (productTotal + installationCharge) * ((selectedOrder.discountPercentage || 0) / 100);
+//     (productTotal + installationCharge) *
+//     ((selectedOrder.discountPercentage || 0) / 100);
 
 //   const miscDiscountAmount =
-//     miscCost * ((selectedOrder.miscDiscountPercentage || 0) / 100);
+//     miscCost *
+//     ((selectedOrder.miscDiscountPercentage || 0) / 100);
 
 //   const techProductDiscount =
 //     productDiscountAmount *
 //     ((selectedOrder.discountSplit?.technicianPercentage || 0) / 100);
 
+//   const ownerProductDiscount =
+//     productDiscountAmount *
+//     ((selectedOrder.discountSplit?.ownerPercentage || 0) / 100);
+
 //   const techMiscDiscount =
 //     miscDiscountAmount *
 //     ((selectedOrder.miscDiscountSplit?.technicianPercentage || 0) / 100);
 
-//   /* -------------------- RENDER -------------------- */
+//   const ownerMiscDiscount =
+//     miscDiscountAmount *
+//     ((selectedOrder.miscDiscountSplit?.ownerPercentage || 0) / 100);
+
+//   const totalRevenue =
+//     productTotal + installationCharge + miscCost + fittingCharge;
+
+//   const totalDiscount =
+//     productDiscountAmount + miscDiscountAmount;
+
+//   const finalAmount = totalRevenue - totalDiscount;
+
+//   /* ================= UI ================= */
 
 //   return (
 //     <Modal open={openViewModal} onClose={handleClose}>
 //       <Box
 //         sx={{
 //           ...modalStyle,
-//           maxHeight: '90vh',
-//           display: 'flex',
-//           flexDirection: 'column'
+//           maxHeight: "92vh",
+//           overflowY: "auto",
+//           p: 3
 //         }}
 //       >
+
 //         {/* ================= HEADER ================= */}
-//         <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-//           <Typography variant="h6">Order Details</Typography>
+//         <Box display="flex" justifyContent="space-between" mb={2}>
+//           <Typography variant="h5" fontWeight="bold">
+//             Order Overview
+//           </Typography>
 //           <IconButton onClick={handleClose}>
 //             <CloseIcon />
 //           </IconButton>
 //         </Box>
 
-//         {/* ================= SCROLLABLE CONTENT ================= */}
-//         <Box sx={{ mt: 2, overflowY: 'auto', pr: 1 }}>
-//           <Grid container spacing={3}>
+//         <Grid container spacing={3}>
 
-//             {/* ================= ORDER INFO ================= */}
-//             <Grid item xs={12} md={6}>
-//               <Typography variant="subtitle2">Order Information</Typography>
-//               <Divider sx={{ my: 1 }} />
+//           {/* ================= ORDER & CUSTOMER INFO ================= */}
+// <Grid item xs={12}>
+//   <Accordion defaultExpanded>
+//     <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+//       <Typography fontWeight="bold">
+//         Order & Customer Details
+//       </Typography>
+//     </AccordionSummary>
 
-//               <InfoRow label="TCR" value={selectedOrder.TCRNumber} />
-//               <InfoRow
-//                 label="Status"
-//                 value={
-//                   <Chip
-//                     label={selectedOrder.status}
-//                     size="small"
-//                     color={
-//                       selectedOrder.status === 'completed'
-//                         ? 'success'
-//                         : selectedOrder.status === 'pending-approval'
-//                         ? 'warning'
-//                         : 'info'
-//                     }
-//                   />
-//                 }
-//               />
-//               <InfoRow label="Company" value={selectedOrder.companyName} />
-//               <InfoRow label="Technician" value={selectedOrder.technicianName} />
-//               <InfoRow
-//                 label="Installation"
-//                 value={`₹${installationCharge.toFixed(2)}`}
-//               />
-//               <InfoRow
-//                 label="Free"
-//                 value={`${selectedOrder.freeInstallation ? "Yes" : "No"}`}
-//               />
-//               <InfoRow
-//                 label="Fitting"
-//                 value={
-//                   <>
-//                     ₹{fittingCharge.toFixed(2)}{' '}
-//                     <Typography
-//                       component="span"
-//                       variant="caption"
-//                       color="success.main"
-//                     >
-//                       (100% Technician)
-//                     </Typography>
-//                   </>
-//                 }
-//               />
-//             </Grid>
+//     <AccordionDetails>
+//       <Grid container spacing={3}>
 
-//             {/* ================= CUSTOMER INFO ================= */}
-//             <Grid item xs={12} md={6}>
-//               <Typography variant="subtitle2">Customer Information</Typography>
-//               <Divider sx={{ my: 1 }} />
+//         {/* ORDER INFO */}
+//         <Grid item xs={12} md={6}>
+//           <Typography fontWeight="600" mb={1}>
+//             Order Info
+//           </Typography>
 
-//               <InfoRow label="Name" value={selectedOrder.customerName} />
-//               <InfoRow
-//                 label="Phone"
-//                 value={selectedOrder.customer?.contact?.phone}
-//               />
-//               <InfoRow
-//                 label="Alt Phone"
-//                 value={
-//                   selectedOrder.customer?.contact?.alternatePhone || 'N/A'
-//                 }
-//               />
-//               <InfoRow
-//                 label="Address"
-//                 value={
-//                   <>
-//                     {selectedOrder.customer?.address?.street}
-//                     <br />
-//                     {selectedOrder.customer?.address?.city},{' '}
-//                     {selectedOrder.customer?.address?.state} -{' '}
-//                     {selectedOrder.customer?.address?.pincode}
-//                   </>
-//                 }
-//               />
-//             </Grid>
+//           <InfoRow label="TCR Number" value={selectedOrder.TCRNumber} />
+//           <InfoRow label="Status" value={selectedOrder.status} />
+//           <InfoRow label="Order Date"
+//             value={new Date(selectedOrder.orderDate).toLocaleDateString()}
+//           />
+//           <InfoRow label="Free Installation"
+//             value={selectedOrder.freeInstallation ? "Yes" : "No"}
+//           />
+//         </Grid>
 
-//             {/* ================= PRODUCTS ================= */}
-//             {selectedOrder.products?.length > 0 && (
-//               <Grid item xs={12}>
-//                 <Typography variant="subtitle2">Products</Typography>
-//                 <Divider sx={{ my: 1 }} />
+//         {/* CUSTOMER INFO */}
+//         <Grid item xs={12} md={6}>
+//           <Typography fontWeight="600" mb={1}>
+//             Customer Info
+//           </Typography>
 
-//                 {selectedOrder.products.map((item, idx) => (
-//                   <Grid container key={idx} sx={{ py: 1 }}>
-//                     <Grid item xs={6}>
-//                       <Typography>{item.product?.name}</Typography>
-//                     </Grid>
-//                     <Grid item xs={3}>
-//                       <Typography>Qty: {item.quantity}</Typography>
-//                     </Grid>
-//                     <Grid item xs={3} textAlign="right">
-//                       <Typography>
-//                         ₹
-//                         {(
-//                           (item.product?.price || 0) * item.quantity
-//                         ).toFixed(2)}
-//                       </Typography>
-//                     </Grid>
-//                   </Grid>
-//                 ))}
-//               </Grid>
-//             )}
+//           <InfoRow label="Name" value={selectedOrder.customer?.name} />
+//           <InfoRow label="Phone" value={selectedOrder.customer?.contact?.phone} />
+//           <InfoRow
+//             label="Address"
+//             value={`${selectedOrder.customer?.address?.street}, 
+//             ${selectedOrder.customer?.address?.city}, 
+//             ${selectedOrder.customer?.address?.state} - 
+//             ${selectedOrder.customer?.address?.pincode}`}
+//           />
+//         </Grid>
 
-//             {/* ================= DISCOUNTS ================= */}
-//             {(productDiscountAmount > 0 || miscDiscountAmount > 0) && (
-//               <Grid item xs={12}>
-//                 <Typography variant="subtitle2">Discount Details</Typography>
-//                 <Divider sx={{ my: 1 }} />
+//         {/* TECHNICIAN INFO */}
+//         <Grid item xs={12} md={6}>
+//           <Typography fontWeight="600" mb={1}>
+//             Technician Info
+//           </Typography>
 
-//                 {productDiscountAmount > 0 && (
-//                   <>
-//                     <Typography fontWeight="bold">
-//                       Product Discount
-//                     </Typography>
-//                     <InfoRow
-//                       label="Percentage"
-//                       value={`${selectedOrder.discountPercentage}%`}
-//                     />
-//                     <InfoRow
-//                       label="Amount"
-//                       value={`₹${productDiscountAmount.toFixed(2)}`}
-//                     />
-//                     <InfoRow
-//                       label="Technician Share"
-//                       value={`₹${techProductDiscount.toFixed(2)}`}
-//                     />
-//                   </>
-//                 )}
+//           <InfoRow label="Name" value={selectedOrder.technician?.name} />
+//           <InfoRow label="Phone" value={selectedOrder.technician?.phone} />
+//           <InfoRow label="Service Rate" value={`₹${selectedOrder.technician?.serviceRate}`} />
+//           <InfoRow label="Misc. Share" value={`${selectedOrder.technician?.miscShare}%`} />
 
-//                 {miscDiscountAmount > 0 && (
-//                   <>
-//                     <Divider sx={{ my: 1 }} />
-//                     <Typography fontWeight="bold">
-//                       Miscellaneous Discount
-//                     </Typography>
-//                     <InfoRow
-//                       label="Percentage"
-//                       value={`${selectedOrder.miscDiscountPercentage}%`}
-//                     />
-//                     <InfoRow
-//                       label="Amount"
-//                       value={`₹${miscDiscountAmount.toFixed(2)}`}
-//                     />
-//                     <InfoRow
-//                       label="Technician Share"
-//                       value={`₹${techMiscDiscount.toFixed(2)}`}
-//                     />
-//                   </>
-//                 )}
+//         </Grid>
 
-//                 <Divider sx={{ my: 1 }} />
-//                 <Typography
-//                   color={
-//                     selectedOrder.discountApproved === 'approved'
-//                       ? 'success.main'
-//                       : selectedOrder.discountApproved === 'rejected'
-//                       ? 'error.main'
-//                       : 'warning.main'
-//                   }
-//                 >
-//                   Status: {selectedOrder.discountApproved}
+//         {/* COMPANY INFO */}
+//         <Grid item xs={12} md={6}>
+//           <Typography fontWeight="600" mb={1}>
+//             Company Info
+//           </Typography>
+
+//           <InfoRow label="Company" value={selectedOrder.company?.name} />
+//           <InfoRow label="Base Installation"
+//             value={`₹${selectedOrder.company?.installationCharge}`}
+//           />
+//         </Grid>
+
+//       </Grid>
+//     </AccordionDetails>
+//   </Accordion>
+// </Grid>
+
+
+//           {/* ================= PRODUCTS ================= */}
+//           <Grid item xs={12}>
+//             <Typography variant="h6">Products</Typography>
+//             <Divider sx={{ mb: 1 }} />
+
+//             {selectedOrder.products?.map((item, i) => (
+//               <Box
+//                 key={i}
+//                 sx={{
+//                   display: "flex",
+//                   justifyContent: "space-between",
+//                   py: 0.5
+//                 }}
+//               >
+//                 <Typography>
+//                   {item.product?.name} × {item.quantity}
 //                 </Typography>
-//               </Grid>
-//             )}
+//                 <Typography fontWeight="500">
+//                   ₹{(
+//                     (item.product?.price || 0) * item.quantity
+//                   ).toFixed(2)}
+//                 </Typography>
+//               </Box>
+//             ))}
 
-//             {/* ================= FINANCIAL SUMMARY ================= */}
-//             <Grid item xs={12}>
-//               <Typography variant="subtitle2">Financial Summary</Typography>
+//             <Divider sx={{ my: 1 }} />
+
+//             <Box display="flex" justifyContent="space-between">
+//               <Typography fontWeight="bold">Product Total</Typography>
+//               <Typography fontWeight="bold">
+//                 ₹{productTotal.toFixed(2)}
+//               </Typography>
+//             </Box>
+//           </Grid>
+
+//           {/* ================= REVENUE BLOCK ================= */}
+//           <Grid item xs={12} md={6}>
+//             <Box sx={{ p: 2, bgcolor: "#f5f7fa", borderRadius: 2 }}>
+//               <Typography fontWeight="bold" mb={1}>
+//                 Revenue Breakdown
+//               </Typography>
+
+//               <FinanceRow label="Products" value={productTotal} />
+//               <FinanceRow label="Installation" value={installationCharge} />
+//               <FinanceRow label="Miscellaneous" value={miscCost} />
+//               <FinanceRow label="Fitting (Tech Only)" value={fittingCharge} />
+
 //               <Divider sx={{ my: 1 }} />
 
-//               <SummaryRow label="Product Total" value={productTotal} />
-//               <SummaryRow label="Installation" value={installationCharge} />
-//               <SummaryRow label="Fitting (Tech Only)" value={fittingCharge} />
-//               <SummaryRow label="Misc Cost" value={miscCost} />
-
-//               {productDiscountAmount > 0 && (
-//                 <SummaryRow
-//                   label="Product Discount"
-//                   value={-productDiscountAmount}
-//                 />
-//               )}
-
-//               {miscDiscountAmount > 0 && (
-//                 <SummaryRow
-//                   label="Misc Discount"
-//                   value={-miscDiscountAmount}
-//                 />
-//               )}
-
-//               <Divider sx={{ my: 1 }} />
-//               <SummaryRow
-//                 label="Net Amount"
-//                 value={selectedOrder.netAmount}
+//               <FinanceRow
+//                 label="Total Revenue"
+//                 value={totalRevenue}
 //                 bold
 //               />
-//               <SummaryRow
+//             </Box>
+//           </Grid>
+
+//           {/* ================= DISCOUNT BLOCK ================= */}
+//           <Grid item xs={12} md={6}>
+//             <Box sx={{ p: 2, bgcolor: "#fff4f4", borderRadius: 2 }}>
+//               <Typography fontWeight="bold" mb={1}>
+//                 Discount Distribution
+//               </Typography>
+
+//               <FinanceRow
+//                 label="Product Discount"
+//                 value={-productDiscountAmount}
+//               />
+//               <FinanceRow
+//                 label="Misc Discount"
+//                 value={-miscDiscountAmount}
+//               />
+
+//               <Divider sx={{ my: 1 }} />
+
+//               <Typography variant="body2" fontWeight="600">
+//                 Technician Pays:
+//               </Typography>
+//               <FinanceRow
+//                 label="Product Share"
+//                 value={-techProductDiscount}
+//               />
+//               <FinanceRow
+//                 label="Misc Share"
+//                 value={-techMiscDiscount}
+//               />
+
+//               <Divider sx={{ my: 1 }} />
+
+//               <Typography variant="body2" fontWeight="600">
+//                 Owner Pays:
+//               </Typography>
+//               <FinanceRow
+//                 label="Product Share"
+//                 value={-ownerProductDiscount}
+//               />
+//               <FinanceRow
+//                 label="Misc Share"
+//                 value={-ownerMiscDiscount}
+//               />
+//             </Box>
+//           </Grid>
+
+//           {/* ================= FINAL SUMMARY ================= */}
+//           <Grid item xs={12}>
+//             <Box
+//               sx={{
+//                 p: 3,
+//                 bgcolor: "#e8f5e9",
+//                 borderRadius: 2
+//               }}
+//             >
+//               <Typography variant="h6" fontWeight="bold" mb={1}>
+//                 Final Settlement
+//               </Typography>
+
+//               <FinanceRow
+//                 label="Final Amount After Discount"
+//                 value={finalAmount}
+//                 bold
+//               />
+
+//               <FinanceRow
 //                 label="Technician Cut"
 //                 value={selectedOrder.technicianCut}
 //               />
 
+//               <FinanceRow
+//                 label="Company Cut"
+//                 value={selectedOrder.companyCut}
+//               />
+
 //               {selectedOrder.outstandingAmount > 0 && (
-//                 <SummaryRow
+//                 <FinanceRow
 //                   label="Outstanding"
 //                   value={selectedOrder.outstandingAmount}
 //                   error
 //                 />
 //               )}
-//             </Grid>
-
-//             {/* ================= ACTIONS ================= */}
-//             <Grid
-//               item
-//               xs={12}
-//               sx={{ display: 'flex', justifyContent: 'flex-end' }}
-//             >
-//               <Button variant="outlined" onClick={handleClose}>
-//                 Close
-//               </Button>
-//             </Grid>
+//             </Box>
 //           </Grid>
-//         </Box>
+
+//           {/* ================= CLOSE ================= */}
+//           <Grid item xs={12} textAlign="right">
+//             <Button variant="contained" onClick={handleClose}>
+//               Close
+//             </Button>
+//           </Grid>
+
+//         </Grid>
 //       </Box>
 //     </Modal>
 //   );
 // };
+
 
 const renderViewModal = () => {
   if (!selectedOrder) return null;
@@ -1491,45 +1495,74 @@ const renderViewModal = () => {
   const productTotal =
     selectedOrder.products?.reduce(
       (sum, item) =>
-        sum + (item.product?.price || 0) * (item.quantity || 0),
+        sum +
+        (Number(item.product?.price) || 0) *
+        (Number(item.quantity) || 0),
       0
     ) || 0;
 
-  const installationCharge = Number(selectedOrder.installationCharge) || 0;
-  const fittingCharge = Number(selectedOrder.fittingCost) || 0;
-  const miscCost = Number(selectedOrder.miscellaneousCost) || 0;
+  const installationCharge =
+    Number(selectedOrder.installationCharge) || 0;
 
-  const productDiscountAmount =
-    (productTotal + installationCharge) *
-    ((selectedOrder.discountPercentage || 0) / 100);
+  const fittingCharge =
+    Number(selectedOrder.fittingCost) || 0;
 
-  const miscDiscountAmount =
-    miscCost *
-    ((selectedOrder.miscDiscountPercentage || 0) / 100);
+  const miscCost =
+    Number(selectedOrder.miscellaneousCost) || 0;
 
-  const techProductDiscount =
-    productDiscountAmount *
-    ((selectedOrder.discountSplit?.technicianPercentage || 0) / 100);
+  const serviceRate =
+    Number(selectedOrder.technician?.serviceRate) || 0;
 
-  const ownerProductDiscount =
-    productDiscountAmount *
-    ((selectedOrder.discountSplit?.ownerPercentage || 0) / 100);
+  /* ---- GROSS SUBTOTAL (MATCH BACKEND) ---- */
+  const grossSubtotal =
+    productTotal +
+    installationCharge +
+    miscCost +
+    fittingCharge +
+    serviceRate;
 
-  const techMiscDiscount =
-    miscDiscountAmount *
-    ((selectedOrder.miscDiscountSplit?.technicianPercentage || 0) / 100);
+  /* ================= DISCOUNT ================= */
 
-  const ownerMiscDiscount =
-    miscDiscountAmount *
-    ((selectedOrder.miscDiscountSplit?.ownerPercentage || 0) / 100);
+  console.log("DISCOUNT OBJECT:", selectedOrder.discount);
 
-  const totalRevenue =
-    productTotal + installationCharge + miscCost + fittingCharge;
 
-  const totalDiscount =
-    productDiscountAmount + miscDiscountAmount;
+  let totalDiscount = 0;
+  let discountLabel = "0";
 
-  const finalAmount = totalRevenue - totalDiscount;
+  if (selectedOrder.discount?.type === "percentage") {
+    const pct =
+      Math.max(
+        0,
+        Math.min(100, Number(selectedOrder.discount?.value) || 0)
+      );
+
+    totalDiscount = grossSubtotal * (pct / 100);
+    discountLabel = `${pct}%`;
+  }
+
+  if (selectedOrder.discount?.type === "amount") {
+    const amount =
+      Number(selectedOrder.discount?.value) || 0;
+
+    totalDiscount = Math.min(grossSubtotal, amount);
+    discountLabel = `₹${amount}`;
+  }
+
+  /* ================= SPLIT ================= */
+
+  const technicianSharePercentage =
+    Number(selectedOrder.discountSplit?.technicianPercentage) || 0;
+
+  const ownerSharePercentage =
+    Number(selectedOrder.discountSplit?.ownerPercentage) || 100;
+
+  const technicianDiscountShare =
+    totalDiscount * (technicianSharePercentage / 100);
+
+  const ownerDiscountShare =
+    totalDiscount * (ownerSharePercentage / 100);
+
+  const finalAmount = grossSubtotal - totalDiscount;
 
   /* ================= UI ================= */
 
@@ -1543,7 +1576,6 @@ const renderViewModal = () => {
           p: 3
         }}
       >
-
         {/* ================= HEADER ================= */}
         <Box display="flex" justifyContent="space-between" mb={2}>
           <Typography variant="h5" fontWeight="bold">
@@ -1556,7 +1588,6 @@ const renderViewModal = () => {
 
         <Grid container spacing={3}>
 
-          {/* ================= ORDER & CUSTOMER INFO ================= */}
 <Grid item xs={12}>
   <Accordion defaultExpanded>
     <AccordionSummary expandIcon={<ExpandMoreIcon />}>
@@ -1631,6 +1662,7 @@ const renderViewModal = () => {
   </Accordion>
 </Grid>
 
+          
 
           {/* ================= PRODUCTS ================= */}
           <Grid item xs={12}>
@@ -1651,7 +1683,8 @@ const renderViewModal = () => {
                 </Typography>
                 <Typography fontWeight="500">
                   ₹{(
-                    (item.product?.price || 0) * item.quantity
+                    (Number(item.product?.price) || 0) *
+                    (Number(item.quantity) || 0)
                   ).toFixed(2)}
                 </Typography>
               </Box>
@@ -1677,13 +1710,14 @@ const renderViewModal = () => {
               <FinanceRow label="Products" value={productTotal} />
               <FinanceRow label="Installation" value={installationCharge} />
               <FinanceRow label="Miscellaneous" value={miscCost} />
-              <FinanceRow label="Fitting (Tech Only)" value={fittingCharge} />
+              <FinanceRow label="Fitting Cost" value={fittingCharge} />
+              <FinanceRow label="Service Charge" value={serviceRate} />
 
               <Divider sx={{ my: 1 }} />
 
               <FinanceRow
-                label="Total Revenue"
-                value={totalRevenue}
+                label="Gross Subtotal"
+                value={grossSubtotal}
                 bold
               />
             </Box>
@@ -1697,40 +1731,29 @@ const renderViewModal = () => {
               </Typography>
 
               <FinanceRow
-                label="Product Discount"
-                value={-productDiscountAmount}
-              />
-              <FinanceRow
-                label="Misc Discount"
-                value={-miscDiscountAmount}
+                label={`Overall Discount (${discountLabel})`}
+                value={-totalDiscount}
+                bold
               />
 
               <Divider sx={{ my: 1 }} />
 
               <Typography variant="body2" fontWeight="600">
-                Technician Pays:
+                Technician Pays ({technicianSharePercentage}%)
               </Typography>
               <FinanceRow
-                label="Product Share"
-                value={-techProductDiscount}
-              />
-              <FinanceRow
-                label="Misc Share"
-                value={-techMiscDiscount}
+                label="Technician Share"
+                value={-technicianDiscountShare}
               />
 
               <Divider sx={{ my: 1 }} />
 
               <Typography variant="body2" fontWeight="600">
-                Owner Pays:
+                Owner Pays ({ownerSharePercentage}%)
               </Typography>
               <FinanceRow
-                label="Product Share"
-                value={-ownerProductDiscount}
-              />
-              <FinanceRow
-                label="Misc Share"
-                value={-ownerMiscDiscount}
+                label="Owner Share"
+                value={-ownerDiscountShare}
               />
             </Box>
           </Grid>
@@ -1868,27 +1891,66 @@ const renderViewModal = () => {
               />
             </Grid> */}
   <Grid item xs={12} sm={6}>
-            <TextField
-  fullWidth
-  label="Product Discount (%)"
-  name="productDiscountPercentage"
-  type="number"
-  value={completeForm.productDiscountPercentage}
-  onChange={handleCompleteChange}
-  InputProps={{ inputProps: { min: 0, max: 100 } }}
-/>
+  <FormControl fullWidth>
+    <InputLabel>Discount Type</InputLabel>
+    <Select
+      value={completeForm.discount.type}
+      label="Discount Type"
+      onChange={(e) =>
+        setCompleteForm((prev) => ({
+          ...prev,
+          discount: {
+            ...prev.discount,
+            type: e.target.value
+          }
+        }))
+      }
+    >
+      <MenuItem value="percentage">Percentage (%)</MenuItem>
+      <MenuItem value="amount">Fixed Amount (₹)</MenuItem>
+    </Select>
+  </FormControl>
 </Grid>
+
 <Grid item xs={12} sm={6}>
-<TextField
-  fullWidth
-  label="Misc Discount (%)"
-  name="miscDiscountPercentage"
-  type="number"
-  value={completeForm.miscDiscountPercentage}
-  onChange={handleCompleteChange}
-  InputProps={{ inputProps: { min: 0, max: 100 } }}
-/>
+  <TextField
+    fullWidth
+    label={
+      completeForm.discount.type === 'percentage'
+        ? 'Discount (%)'
+        : 'Discount Amount (₹)'
+    }
+    type="number"
+    value={completeForm.discount.value}
+    onChange={(e) =>
+      setCompleteForm((prev) => ({
+        ...prev,
+        discount: {
+          ...prev.discount,
+          value: e.target.value
+        }
+      }))
+    }
+     InputProps={{
+  startAdornment: (
+    <InputAdornment position="start">
+      {completeForm.discount.type === 'percentage' ? '%' : '₹'}
+    </InputAdornment>
+  ),
+  inputProps:
+    completeForm.discount.type === 'percentage'
+      ? { min: 0, max: 100 }
+      : { min: 0 }
+}}
+
+
+
+
+
+
+  />
 </Grid>
+
 
             <Grid item xs={12}>
               <Button type="submit" variant="contained" fullWidth color="success">
@@ -1901,235 +1963,326 @@ const renderViewModal = () => {
     </Modal>
   );
 
-  // Add this modal for discount approval
-//   const renderDiscountModal = () => {
-//     // Calculate discount amount
-//     const discountAmount = selectedOrder ? calculateDiscountAmount(selectedOrder) : 0;
 
-//     return <Modal open={openDiscountModal} onClose={() => setOpenDiscountModal(false)}>
+// const renderDiscountModal = () => {
+//   if (!selectedOrder) return null;
+
+//   /* -------------------- BASE AMOUNTS -------------------- */
+
+//   const productsTotal = selectedOrder.products.reduce(
+//     (sum, item) => sum + item.product.price * item.quantity,
+//     0
+//   );
+
+//   const installationCharge = Number(selectedOrder.installationCharge || 0);
+//   const miscellaneousCost = Number(selectedOrder.miscellaneousCost || 0);
+
+//   /* -------------------- DISCOUNT BASES -------------------- */
+
+//   // Discount applies to products + installation
+//   const productDiscountBase = productsTotal + installationCharge;
+
+//   // Misc discount applies ONLY to misc cost
+//   const miscDiscountBase = miscellaneousCost;
+
+//   /* -------------------- DISCOUNT PERCENTAGES -------------------- */
+
+//   const productDiscountPercentage = Number(
+//     selectedOrder.discountPercentage || 0
+//   );
+
+//   const miscDiscountPercentage = Number(
+//     selectedOrder.miscDiscountPercentage || 0
+//   );
+
+//   /* -------------------- DISCOUNT AMOUNTS -------------------- */
+
+//   const productDiscountAmount =
+//     (productDiscountBase * productDiscountPercentage) / 100;
+
+//   const miscDiscountAmount =
+//     (miscDiscountBase * miscDiscountPercentage) / 100;
+
+//   /* -------------------- SPLITS -------------------- */
+
+//   const productSplit = selectedOrder.discountSplit || {
+//     ownerPercentage: 100,
+//     technicianPercentage: 0
+//   };
+
+//   const miscSplit = selectedOrder.miscDiscountSplit || {
+//     ownerPercentage: 100,
+//     technicianPercentage: 0
+//   };
+
+//   return (
+//     <Modal open={openDiscountModal} onClose={() => setOpenDiscountModal(false)}>
 //       <Box sx={modalStyle}>
-//         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+//         {/* HEADER */}
+//         <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
 //           <Typography variant="h6">Discount Approval</Typography>
 //           <IconButton onClick={() => setOpenDiscountModal(false)} size="small">
 //             <CloseIcon />
 //           </IconButton>
 //         </Box>
 
-//         {selectedOrder && (
-//           <>
-//             <Box sx={{ mt: 3, mb: 2 }}>
-//               <Grid container justifyContent="space-between">
-//                 <Grid item>
-//                   <Typography variant="body1">
-//                     <strong>Discount:</strong> {selectedOrder?.discountPercentage || 0}%
-//                   </Typography>
-//                 </Grid>
-//                 <Grid item>
-//                   <Typography variant="body1">
-//                     <strong>Amount:</strong> ₹{discountAmount.toFixed(2)}
-//                   </Typography>
-//                 </Grid>
-//               </Grid>
-//             </Box>
+//         {/* ---------------- PRODUCT DISCOUNT ---------------- */}
+//         <Box sx={{ mt: 3 }}>
+//           <Typography variant="subtitle1">
+//             Product + Installation Discount
+//           </Typography>
 
-//             <Divider sx={{ my: 2 }} />
-
-//             {/* <Typography variant="subtitle1" gutterBottom>
-//               Responsibility Distribution
+//           <Grid container justifyContent="space-between">
+//             <Typography>{productDiscountPercentage}%</Typography>
+//             <Typography>
+//               {formatCurrency(productDiscountAmount)}
 //             </Typography>
+//           </Grid>
 
-//             <Box sx={{ px: 2, py: 3, backgroundColor: '#f5f5f5', borderRadius: 1 }}>
-//               <Grid container spacing={2} alignItems="center">
-//                 <Grid item xs={3}>
-//                   <Typography variant="body2" color="primary">
-//                     Owner: {discountSplit.owner}%
-//                   </Typography>
-//                 </Grid>
-//                 <Grid item xs={6}>
-//                   <Slider
-//                     value={discountSplit.owner}
-//                     onChange={handleDiscountSplitChange}
-//                     aria-labelledby="discount-split-slider"
-//                     valueLabelDisplay="auto"
-//                     step={5}
-//                     marks
-//                     min={0}
-//                     max={100}
-//                   />
-//                 </Grid>
-//                 <Grid item xs={3} textAlign="right">
-//                   <Typography variant="body2" color="secondary">
-//                     Technician: {discountSplit.technician}%
-//                   </Typography>
-//                 </Grid>
-//               </Grid>
-//             </Box> */}
+//           <Typography variant="caption">
+//             Owner: {productSplit.ownerPercentage}% | Technician:{' '}
+//             {productSplit.technicianPercentage}%
+//           </Typography>
 
-//             <Typography variant="subtitle2">Product Discount Split</Typography>
-// <Slider
-//   value={productDiscountSplit.owner}
-//   onChange={(e, val) =>
-//     setProductDiscountSplit({ owner: val, technician: 100 - val })
-//   }
-// />
+//           <Slider
+//             value={productDiscountSplit.owner}
+//             onChange={(e, val) =>
+//               setProductDiscountSplit({
+//                 owner: Number(val),
+//                 technician: 100 - Number(val)
+//               })
+//             }
+//             step={5}
+//             min={0}
+//             max={100}
+//             valueLabelDisplay="auto"
+//           />
+//         </Box>
 
-// <Typography variant="subtitle2" sx={{ mt: 2 }}>
-//   Misc Discount Split
-// </Typography>
-// <Slider
-//   value={miscDiscountSplit.owner}
-//   onChange={(e, val) =>
-//     setMiscDiscountSplit({ owner: val, technician: 100 - val })
-//   }
-// />
+//         <Divider sx={{ my: 3 }} />
 
+//         {/* ---------------- MISC DISCOUNT ---------------- */}
+//         <Box>
+//           <Typography variant="subtitle1">
+//             Miscellaneous Discount
+//           </Typography>
 
+//           <Grid container justifyContent="space-between">
+//             <Typography>{miscDiscountPercentage}%</Typography>
+//             <Typography>
+//               {formatCurrency(miscDiscountAmount)}
+//             </Typography>
+//           </Grid>
 
-//             <Box sx={{ mt: 4, display: 'flex', justifyContent: 'space-between' }}>
-//               <Button
-//                 variant="contained"
-//                 color="error"
-//                 onClick={handleRejectDiscount}
-//                 disabled={loading}
-//               >
-//                 Reject Discount
-//               </Button>
+//           <Typography variant="caption">
+//             Owner: {miscSplit.ownerPercentage}% | Technician:{' '}
+//             {miscSplit.technicianPercentage}%
+//           </Typography>
 
-//               <Button
-//                 variant="contained"
-//                 color="success"
-//                 onClick={handleApproveDiscount}
-//                 disabled={loading}
-//                 startIcon={<CheckCircleIcon />}
-//               >
-//                 Approve Distribution
-//               </Button>
-//             </Box>
-//           </>
-//         )}
+//           <Slider
+//             value={miscDiscountSplit.owner}
+//             onChange={(e, val) =>
+//               setMiscDiscountSplit({
+//                 owner: Number(val),
+//                 technician: 100 - Number(val)
+//               })
+//             }
+//             step={5}
+//             min={0}
+//             max={100}
+//             valueLabelDisplay="auto"
+//           />
+//         </Box>
+
+//         <Divider sx={{ my: 3 }} />
+
+//         {/* INFO */}
+//         <Typography variant="body2" color="text.secondary">
+//           ℹ️ Service / fitting charges are fully credited to the technician and
+//           are not discounted.
+//         </Typography>
+
+//         {/* ACTIONS */}
+//         <Box sx={{ mt: 4, display: 'flex', justifyContent: 'space-between' }}>
+//           <Button
+//             variant="contained"
+//             color="error"
+//             onClick={handleRejectDiscount}
+//             disabled={loading}
+//           >
+//             Reject Discount
+//           </Button>
+
+//           <Button
+//             variant="contained"
+//             color="success"
+//             onClick={handleApproveDiscount}
+//             disabled={loading}
+//             startIcon={<CheckCircleIcon />}
+//           >
+//             Approve Distribution
+//           </Button>
+//         </Box>
 //       </Box>
 //     </Modal>
-//   };
+//   );
+// };
 
 const renderDiscountModal = () => {
   if (!selectedOrder) return null;
 
-  /* -------------------- BASE AMOUNTS -------------------- */
+  /* ================= BACKEND MATCHED CALC ================= */
 
-  const productsTotal = selectedOrder.products.reduce(
-    (sum, item) => sum + item.product.price * item.quantity,
-    0
-  );
+  const installationCharge =
+    Number(selectedOrder.installationCharge) || 0;
 
-  const installationCharge = Number(selectedOrder.installationCharge || 0);
-  const miscellaneousCost = Number(selectedOrder.miscellaneousCost || 0);
+  let productTotal = installationCharge;
 
-  /* -------------------- DISCOUNT BASES -------------------- */
+  (selectedOrder.products || []).forEach(item => {
+    const price =
+      Number(item.salePrice ?? item.product?.price) || 0;
+    const qty = Number(item.quantity) || 0;
+    productTotal += price * qty;
+  });
 
-  // Discount applies to products + installation
-  const productDiscountBase = productsTotal + installationCharge;
+  const miscCost =
+    Number(selectedOrder.miscellaneousCost) || 0;
 
-  // Misc discount applies ONLY to misc cost
-  const miscDiscountBase = miscellaneousCost;
+  const fittingCharge =
+    Number(selectedOrder.fittingCost) || 0;
 
-  /* -------------------- DISCOUNT PERCENTAGES -------------------- */
+  const serviceRate =
+    Number(selectedOrder.technician?.serviceRate) || 0;
 
-  const productDiscountPercentage = Number(
-    selectedOrder.discountPercentage || 0
-  );
+  /* ---- GROSS SUBTOTAL (exactly like backend) ---- */
+  const grossSubtotal =
+      productTotal
+    + miscCost
+    + fittingCharge
+    + serviceRate;
 
-  const miscDiscountPercentage = Number(
-    selectedOrder.miscDiscountPercentage || 0
-  );
+  /* ================= DISCOUNT ================= */
 
-  /* -------------------- DISCOUNT AMOUNTS -------------------- */
+  let discountAmount = 0;
+  let discountLabel = "";
 
-  const productDiscountAmount =
-    (productDiscountBase * productDiscountPercentage) / 100;
+  if (selectedOrder.discount?.type === "percentage") {
+    const pct = Math.max(
+      0,
+      Math.min(100, Number(selectedOrder.discount?.value) || 0)
+    );
 
-  const miscDiscountAmount =
-    (miscDiscountBase * miscDiscountPercentage) / 100;
+    discountAmount = grossSubtotal * (pct / 100);
+    discountLabel = `${pct}%`;
+  }
 
-  /* -------------------- SPLITS -------------------- */
+  if (selectedOrder.discount?.type === "amount") {
+    discountAmount = Math.min(
+      grossSubtotal,
+      Number(selectedOrder.discount?.value) || 0
+    );
 
-  const productSplit = selectedOrder.discountSplit || {
+    discountLabel = `₹${selectedOrder.discount?.value}`;
+  }
+
+  /* ================= SPLIT ================= */
+
+  const split = selectedOrder.discountSplit || {
     ownerPercentage: 100,
     technicianPercentage: 0
   };
 
-  const miscSplit = selectedOrder.miscDiscountSplit || {
-    ownerPercentage: 100,
-    technicianPercentage: 0
-  };
+  const technicianDiscount =
+    discountAmount *
+    (Number(split.technicianPercentage) / 100);
+
+  const ownerDiscount =
+    discountAmount *
+    (Number(split.ownerPercentage) / 100);
+
+  const netAmount =
+    grossSubtotal - discountAmount;
 
   return (
-    <Modal open={openDiscountModal} onClose={() => setOpenDiscountModal(false)}>
+    <Modal
+      open={openDiscountModal}
+      onClose={() => setOpenDiscountModal(false)}
+    >
       <Box sx={modalStyle}>
         {/* HEADER */}
-        <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-          <Typography variant="h6">Discount Approval</Typography>
-          <IconButton onClick={() => setOpenDiscountModal(false)} size="small">
+        <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+          <Typography variant="h6">
+            Discount Approval
+          </Typography>
+          <IconButton
+            onClick={() => setOpenDiscountModal(false)}
+            size="small"
+          >
             <CloseIcon />
           </IconButton>
         </Box>
 
-        {/* ---------------- PRODUCT DISCOUNT ---------------- */}
+        {/* ================= DISCOUNT SUMMARY ================= */}
         <Box sx={{ mt: 3 }}>
           <Typography variant="subtitle1">
-            Product + Installation Discount
+            Discount Summary
           </Typography>
 
           <Grid container justifyContent="space-between">
-            <Typography>{productDiscountPercentage}%</Typography>
-            <Typography>
-              {formatCurrency(productDiscountAmount)}
+            <Typography>Gross Subtotal</Typography>
+            <Typography fontWeight="600">
+              {formatCurrency(grossSubtotal)}
             </Typography>
           </Grid>
 
-          <Typography variant="caption">
-            Owner: {productSplit.ownerPercentage}% | Technician:{' '}
-            {productSplit.technicianPercentage}%
-          </Typography>
+          <Grid container justifyContent="space-between">
+            <Typography>
+              Discount ({discountLabel})
+            </Typography>
+            <Typography color="error.main" fontWeight="600">
+              -{formatCurrency(discountAmount)}
+            </Typography>
+          </Grid>
 
-          <Slider
-            value={productDiscountSplit.owner}
-            onChange={(e, val) =>
-              setProductDiscountSplit({
-                owner: Number(val),
-                technician: 100 - Number(val)
-              })
-            }
-            step={5}
-            min={0}
-            max={100}
-            valueLabelDisplay="auto"
-          />
+          <Grid container justifyContent="space-between">
+            <Typography fontWeight="600">
+              Net After Discount
+            </Typography>
+            <Typography fontWeight="600">
+              {formatCurrency(netAmount)}
+            </Typography>
+          </Grid>
+
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{ display: "block", mt: 1 }}
+          >
+            Applied to: Products + Installation + Misc + Fitting + Service
+          </Typography>
         </Box>
 
         <Divider sx={{ my: 3 }} />
 
-        {/* ---------------- MISC DISCOUNT ---------------- */}
+        {/* ================= SPLIT SECTION ================= */}
         <Box>
-          <Typography variant="subtitle1">
-            Miscellaneous Discount
+          <Typography variant="subtitle1" gutterBottom>
+            Discount Distribution
           </Typography>
 
           <Grid container justifyContent="space-between">
-            <Typography>{miscDiscountPercentage}%</Typography>
-            <Typography>
-              {formatCurrency(miscDiscountAmount)}
+            <Typography fontWeight="bold">
+              Owner ({split.ownerPercentage}%)
+            </Typography>
+            <Typography fontWeight="bold">
+              Technician ({split.technicianPercentage}%)
             </Typography>
           </Grid>
 
-          <Typography variant="caption">
-            Owner: {miscSplit.ownerPercentage}% | Technician:{' '}
-            {miscSplit.technicianPercentage}%
-          </Typography>
-
           <Slider
-            value={miscDiscountSplit.owner}
+            value={discountSplit.owner}
             onChange={(e, val) =>
-              setMiscDiscountSplit({
+              setDiscountSplit({
                 owner: Number(val),
                 technician: 100 - Number(val)
               })
@@ -2139,18 +2292,27 @@ const renderDiscountModal = () => {
             max={100}
             valueLabelDisplay="auto"
           />
+
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{ display: "block", mt: 1 }}
+          >
+            Technician absorbs {formatCurrency(technicianDiscount)} | 
+            Owner absorbs {formatCurrency(ownerDiscount)}
+          </Typography>
         </Box>
 
         <Divider sx={{ my: 3 }} />
 
-        {/* INFO */}
-        <Typography variant="body2" color="text.secondary">
-          ℹ️ Service / fitting charges are fully credited to the technician and
-          are not discounted.
-        </Typography>
-
-        {/* ACTIONS */}
-        <Box sx={{ mt: 4, display: 'flex', justifyContent: 'space-between' }}>
+        {/* ================= ACTIONS ================= */}
+        <Box
+          sx={{
+            mt: 4,
+            display: "flex",
+            justifyContent: "space-between"
+          }}
+        >
           <Button
             variant="contained"
             color="error"
@@ -2174,6 +2336,8 @@ const renderDiscountModal = () => {
     </Modal>
   );
 };
+
+
 
 const [startDate, setStartDate] = useState('');
 const [endDate, setEndDate] = useState('');
