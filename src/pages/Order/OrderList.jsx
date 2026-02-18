@@ -1492,77 +1492,79 @@ const renderViewModal = () => {
 
   /* ================= CALCULATIONS ================= */
 
-  const productTotal =
-    selectedOrder.products?.reduce(
-      (sum, item) =>
-        sum +
-        (Number(item.product?.price) || 0) *
-        (Number(item.quantity) || 0),
-      0
-    ) || 0;
+// Products ONLY
+const productTotal =
+  selectedOrder.products?.reduce(
+    (sum, item) =>
+      sum +
+      (Number(item.salePrice ?? item.product?.price) || 0) *
+      (Number(item.quantity) || 0),
+    0
+  ) || 0;
 
-  const installationCharge =
-    Number(selectedOrder.installationCharge) || 0;
+const installationCharge =
+  Number(selectedOrder.installationCharge) || 0;
 
-  const fittingCharge =
-    Number(selectedOrder.fittingCost) || 0;
+const fittingCharge =
+  Number(selectedOrder.fittingCost) || 0;
 
-  const miscCost =
-    Number(selectedOrder.miscellaneousCost) || 0;
+const miscCost =
+  Number(selectedOrder.miscellaneousCost) || 0;
 
-  const serviceRate =
-    Number(selectedOrder.technician?.serviceRate) || 0;
+const serviceRate =
+  Number(selectedOrder.technician?.serviceRate) || 0;
 
-  /* ---- GROSS SUBTOTAL (MATCH BACKEND) ---- */
-  const grossSubtotal =
-    productTotal +
-    installationCharge +
-    miscCost +
-    fittingCharge +
-    serviceRate;
+/* ---- GROSS SUBTOTAL (EXACT BACKEND MATCH) ---- */
+const grossSubtotal =
+  productTotal +
+  installationCharge +
+  miscCost +
+  fittingCharge;
 
-  /* ================= DISCOUNT ================= */
+/* ================= DISCOUNT ================= */
 
-  console.log("DISCOUNT OBJECT:", selectedOrder.discount);
+let totalDiscount = 0;
+let discountLabel = "0";
 
+if (selectedOrder.discount?.type === "percentage") {
+  const pct = Math.max(
+    0,
+    Math.min(100, Number(selectedOrder.discount?.value) || 0)
+  );
 
-  let totalDiscount = 0;
-  let discountLabel = "0";
+  totalDiscount = grossSubtotal * (pct / 100);
+  discountLabel = `${pct}%`;
+}
 
-  if (selectedOrder.discount?.type === "percentage") {
-    const pct =
-      Math.max(
-        0,
-        Math.min(100, Number(selectedOrder.discount?.value) || 0)
-      );
+if (selectedOrder.discount?.type === "amount") {
+  const amount = Number(selectedOrder.discount?.value) || 0;
 
-    totalDiscount = grossSubtotal * (pct / 100);
-    discountLabel = `${pct}%`;
-  }
+  totalDiscount = Math.min(grossSubtotal, amount);
+  discountLabel = `₹${amount}`;
+}
 
-  if (selectedOrder.discount?.type === "amount") {
-    const amount =
-      Number(selectedOrder.discount?.value) || 0;
+/* ================= SPLIT ================= */
 
-    totalDiscount = Math.min(grossSubtotal, amount);
-    discountLabel = `₹${amount}`;
-  }
+const technicianSharePercentage =
+  Math.min(
+    100,
+    Math.max(
+      0,
+      Number(selectedOrder.discountSplit?.technicianPercentage) || 0
+    )
+  );
 
-  /* ================= SPLIT ================= */
+const ownerSharePercentage =
+  100 - technicianSharePercentage;
 
-  const technicianSharePercentage =
-    Number(selectedOrder.discountSplit?.technicianPercentage) || 0;
+const technicianDiscountShare =
+  totalDiscount * (technicianSharePercentage / 100);
 
-  const ownerSharePercentage =
-    Number(selectedOrder.discountSplit?.ownerPercentage) || 100;
+const ownerDiscountShare =
+  totalDiscount * (ownerSharePercentage / 100);
 
-  const technicianDiscountShare =
-    totalDiscount * (technicianSharePercentage / 100);
+const finalAmount = grossSubtotal - totalDiscount;
 
-  const ownerDiscountShare =
-    totalDiscount * (ownerSharePercentage / 100);
-
-  const finalAmount = grossSubtotal - totalDiscount;
 
   /* ================= UI ================= */
 
@@ -1683,7 +1685,7 @@ const renderViewModal = () => {
                 </Typography>
                 <Typography fontWeight="500">
                   ₹{(
-                    (Number(item.product?.price) || 0) *
+                    (Number(item.salePrice || item.product?.price) || 0) *
                     (Number(item.quantity) || 0)
                   ).toFixed(2)}
                 </Typography>
@@ -1701,62 +1703,64 @@ const renderViewModal = () => {
           </Grid>
 
           {/* ================= REVENUE BLOCK ================= */}
-          <Grid item xs={12} md={6}>
-            <Box sx={{ p: 2, bgcolor: "#f5f7fa", borderRadius: 2 }}>
-              <Typography fontWeight="bold" mb={1}>
-                Revenue Breakdown
-              </Typography>
+<Grid item xs={12} md={6}>
+  <Box sx={{ p: 2, bgcolor: "#f5f7fa", borderRadius: 2 }}>
+    <Typography fontWeight="bold" mb={1}>
+      Revenue Breakdown
+    </Typography>
 
-              <FinanceRow label="Products" value={productTotal} />
-              <FinanceRow label="Installation" value={installationCharge} />
-              <FinanceRow label="Miscellaneous" value={miscCost} />
-              <FinanceRow label="Fitting Cost" value={fittingCharge} />
-              <FinanceRow label="Service Charge" value={serviceRate} />
+    <FinanceRow label="Product Total" value={productTotal} />
+    <FinanceRow label="Installation Charge" value={installationCharge} />
+    <FinanceRow label="Miscellaneous Cost" value={miscCost} />
+    <FinanceRow label="Fitting Cost" value={fittingCharge} />
 
-              <Divider sx={{ my: 1 }} />
+    <Divider sx={{ my: 1 }} />
 
-              <FinanceRow
-                label="Gross Subtotal"
-                value={grossSubtotal}
-                bold
-              />
-            </Box>
-          </Grid>
+    <FinanceRow
+      label="Gross Subtotal"
+      value={grossSubtotal}
+      bold
+    />
+  </Box>
+</Grid>
+
 
           {/* ================= DISCOUNT BLOCK ================= */}
-          <Grid item xs={12} md={6}>
-            <Box sx={{ p: 2, bgcolor: "#fff4f4", borderRadius: 2 }}>
-              <Typography fontWeight="bold" mb={1}>
-                Discount Distribution
-              </Typography>
+          {/* ================= DISCOUNT BLOCK ================= */}
+<Grid item xs={12} md={6}>
+  <Box sx={{ p: 2, bgcolor: "#fff4f4", borderRadius: 2 }}>
+    <Typography fontWeight="bold" mb={1}>
+      Discount Distribution
+    </Typography>
 
-              <FinanceRow
-                label={`Overall Discount (${discountLabel})`}
-                value={-totalDiscount}
-                bold
-              />
+    <FinanceRow
+      label={`Overall Discount (${discountLabel})`}
+      value={-totalDiscount}
+      bold
+    />
 
-              <Divider sx={{ my: 1 }} />
+    <Divider sx={{ my: 1 }} />
 
-              <Typography variant="body2" fontWeight="600">
-                Technician Pays ({technicianSharePercentage}%)
-              </Typography>
-              <FinanceRow
-                label="Technician Share"
-                value={-technicianDiscountShare}
-              />
+    <Typography variant="body2" fontWeight="600">
+      Technician Pays ({technicianSharePercentage}%)
+    </Typography>
+    <FinanceRow
+      label="Technician Share"
+      value={-technicianDiscountShare}
+    />
 
-              <Divider sx={{ my: 1 }} />
+    <Divider sx={{ my: 1 }} />
 
-              <Typography variant="body2" fontWeight="600">
-                Owner Pays ({ownerSharePercentage}%)
-              </Typography>
-              <FinanceRow
-                label="Owner Share"
-                value={-ownerDiscountShare}
-              />
-            </Box>
-          </Grid>
+    <Typography variant="body2" fontWeight="600">
+      Owner Pays ({ownerSharePercentage}%)
+    </Typography>
+    <FinanceRow
+      label="Owner Share"
+      value={-ownerDiscountShare}
+    />
+  </Box>
+</Grid>
+
 
           {/* ================= FINAL SUMMARY ================= */}
           <Grid item xs={12}>
@@ -2151,15 +2155,15 @@ const renderDiscountModal = () => {
   const fittingCharge =
     Number(selectedOrder.fittingCost) || 0;
 
+  /* ❌ SERVICE RATE REMOVED FROM DISCOUNT BASE */
   const serviceRate =
     Number(selectedOrder.technician?.serviceRate) || 0;
 
-  /* ---- GROSS SUBTOTAL (exactly like backend) ---- */
+  /* ---- GROSS SUBTOTAL (MATCH BACKEND EXACTLY) ---- */
   const grossSubtotal =
       productTotal
     + miscCost
-    + fittingCharge
-    + serviceRate;
+    + fittingCharge;
 
   /* ================= DISCOUNT ================= */
 
@@ -2258,7 +2262,15 @@ const renderDiscountModal = () => {
             color="text.secondary"
             sx={{ display: "block", mt: 1 }}
           >
-            Applied to: Products + Installation + Misc + Fitting + Service
+            Applied to: Products + Installation + Misc + Fitting
+          </Typography>
+
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{ display: "block" }}
+          >
+            Service charge (₹{serviceRate}) is NOT discounted
           </Typography>
         </Box>
 
@@ -2336,6 +2348,7 @@ const renderDiscountModal = () => {
     </Modal>
   );
 };
+
 
 
 
