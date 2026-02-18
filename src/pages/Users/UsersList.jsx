@@ -69,7 +69,17 @@ const handleTogglePassword = () => {
     fetchUsers();
   }, []);
 
-  const handleOpenModal = () => setOpenModal(true);
+  const handleOpenModal = () => {
+    setFormData(
+      {
+    name: '',
+    email: '',
+    password: '',
+    role: 'user'
+  }
+    )
+    setOpenModal(true)
+  };
   const handleCloseModal = () => {
     setOpenModal(false);
     setError('');
