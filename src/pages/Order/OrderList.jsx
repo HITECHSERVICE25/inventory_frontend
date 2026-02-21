@@ -40,6 +40,7 @@ import technicianApi from '../../api/technician';
 import productApi from '../../api/product';
 import DeleteIcon from "@mui/icons-material/Delete";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import { getFinalAmountAfterDiscount } from '../../helpers/order.helper';
 
 
 
@@ -220,17 +221,7 @@ const OrderList = () => {
 
         // Calculate total amount for each order
         const ordersWithTotal = ordersArray.map(order => {
-          const productTotal = order.products.reduce((sum, product) => {
-            return sum + (product.product?.price || 0) * (product.quantity || 0);
-          }, 0);
-
-          const installationCharge = order.installationCharge || 0;
-          const miscellaneousCost = order.miscellaneousCost || 0;
-          const discountPercentage = order.discountPercentage || 0;
-
-          const subtotal = productTotal + installationCharge + miscellaneousCost;
-          const discountAmount = (subtotal * discountPercentage) / 100;
-          const total = subtotal - discountAmount;
+          const total = getFinalAmountAfterDiscount(order);
 
           return {
             ...order,
