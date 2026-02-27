@@ -1546,6 +1546,66 @@ const OrderList = () => {
 
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
+
+<Paper
+  elevation={2}
+  sx={{
+    p: 2,
+    mb: 3,
+    borderRadius: 2,
+    display: "flex",
+    flexWrap: "wrap",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 2
+  }}
+>
+  {/* Left Section */}
+  <Box sx={{ display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap" }}>
+    <Typography variant="subtitle1" fontWeight={600}>
+      Export Orders
+    </Typography>
+
+    <TextField
+      type="date"
+      label="Start Date"
+      size="small"
+      InputLabelProps={{ shrink: true }}
+      value={startDate}
+      onChange={(e) => setStartDate(e.target.value)}
+    />
+
+    <TextField
+      type="date"
+      label="End Date"
+      size="small"
+      InputLabelProps={{ shrink: true }}
+      value={endDate}
+      onChange={(e) => setEndDate(e.target.value)}
+      error={startDate && endDate && !isDateRangeValid()}
+      helperText={
+        startDate && endDate && !isDateRangeValid()
+          ? "Maximum range is 90 days"
+          : ""
+      }
+    />
+  </Box>
+
+  {/* Right Section */}
+  <Button
+    variant="contained"
+    size="medium"
+    onClick={handleExport}
+    disabled={!isDateRangeValid() || exportLoading}
+    sx={{
+      minWidth: 140,
+      fontWeight: 600
+    }}
+  >
+    {exportLoading ? "Exporting..." : "Export Excel"}
+  </Button>
+</Paper>
+
       <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
         <DataGrid
           rows={orders}

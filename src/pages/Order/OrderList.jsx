@@ -41,6 +41,7 @@ import productApi from '../../api/product';
 import DeleteIcon from "@mui/icons-material/Delete";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { getFinalAmountAfterDiscount } from '../../helpers/order.helper';
+import DateRangeExport from '../../components/DateRangeExport';
 
 
 
@@ -206,48 +207,106 @@ const OrderList = () => {
     }
   };
 
-  const fetchData = async () => {
-      try {
-        const params = {
-          page: paginationModel.page + 1,
-          limit: paginationModel.pageSize,
-        };
-        const res = await orderApi.getDraftOrders(params);
+  // const fetchData = async () => {
+  //     try {
+  //       const params = {
+  //         page: paginationModel.page + 1,
+  //         limit: paginationModel.pageSize,
+  //       };
+  //       const res = await orderApi.getDraftOrders(params);
 
-        // Extract data from the new response structure
-        const responseData = res.data;
-        const ordersArray = responseData.data || [];
-        const pagination = responseData.pagination;
+  //       // Extract data from the new response structure
+  //       const responseData = res.data;
+  //       const ordersArray = responseData.data || [];
+  //       const pagination = responseData.pagination;
 
-        // Calculate total amount for each order
-        const ordersWithTotal = ordersArray.map(order => {
-          const total = getFinalAmountAfterDiscount(order);
+  //       // Calculate total amount for each order
+  //       const ordersWithTotal = ordersArray.map(order => {
+  //         const total = getFinalAmountAfterDiscount(order);
 
-          return {
-            ...order,
-            id: order._id,
-            companyName: order.company?.name,
-            technicianName: order.technician?.name,
-            customerName: order.customer?.name,
-            status: order.status,
-            totalAmount: total
-          };
-        });
+  //         return {
+  //           ...order,
+  //           id: order._id,
+  //           companyName: order.company?.name,
+  //           technicianName: order.technician?.name,
+  //           customerName: order.customer?.name,
+  //           status: order.status,
+  //           totalAmount: total
+  //         };
+  //       });
 
-        setOrders(ordersWithTotal);
-        setTotalRows(pagination?.total || 0);
-      } catch (err) {
-        setError('Failed to load orders');
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
+  //       setOrders(ordersWithTotal);
+  //       setTotalRows(pagination?.total || 0);
+  //     } catch (err) {
+  //       setError('Failed to load orders');
+  //       console.error(err);
+  //     } finally {
+  //       setLoading(false);
+  //     }
+  //   };
+
+
+  const [searchInput, setSearchInput] = useState('');
+const [searchQuery, setSearchQuery] = useState('');
+
+const handleSearch = () => {
+  setPaginationModel(prev => ({ ...prev, page: 0 })); // reset to first page
+  setSearchQuery(searchInput.trim());
+};
+
+const handleKeyDown = (event) => {
+  if (event.key === 'Enter') {
+    handleSearch();
+  }
+};
+
+const fetchData = async () => {
+  try {
+    setLoading(true);
+
+    const params = {
+      page: paginationModel.page + 1,
+      limit: paginationModel.pageSize,
     };
+
+    if (searchQuery) {
+      params.search = searchQuery;
+    }
+
+    const res = await orderApi.getDraftOrders(params);
+
+    const responseData = res.data;
+    const ordersArray = responseData.data || [];
+    const pagination = responseData.pagination;
+
+    const ordersWithTotal = ordersArray.map(order => {
+      const total = getFinalAmountAfterDiscount(order);
+
+      return {
+        ...order,
+        id: order._id,
+        companyName: order.company?.name,
+        technicianName: order.technician?.name,
+        customerName: order.customer?.name,
+        status: order.status,
+        totalAmount: total
+      };
+    });
+
+    setOrders(ordersWithTotal);
+    setTotalRows(pagination?.total || 0);
+  } catch (err) {
+    setError('Failed to load orders');
+    console.error(err);
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
     
     fetchData();
-  }, [paginationModel]);
+  }, [paginationModel, searchQuery]);
 
   // Fetch companies and products
   useEffect(() => {
@@ -2424,68 +2483,65 @@ const handleExport = async () => {
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
       
-      <Paper
-  elevation={2}
-  sx={{
-    p: 2,
-    mb: 3,
-    borderRadius: 2,
-    display: "flex",
-    flexWrap: "wrap",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 2
-  }}
->
-  {/* Left Section */}
-  <Box sx={{ display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap" }}>
-    <Typography variant="subtitle1" fontWeight={600}>
-      Export Orders
-    </Typography>
-
-    <TextField
-      type="date"
-      label="Start Date"
-      size="small"
-      InputLabelProps={{ shrink: true }}
-      value={startDate}
-      onChange={(e) => setStartDate(e.target.value)}
-    />
-
-    <TextField
-      type="date"
-      label="End Date"
-      size="small"
-      InputLabelProps={{ shrink: true }}
-      value={endDate}
-      onChange={(e) => setEndDate(e.target.value)}
-      error={startDate && endDate && !isDateRangeValid()}
-      helperText={
-        startDate && endDate && !isDateRangeValid()
-          ? "Maximum range is 90 days"
-          : ""
-      }
-    />
-  </Box>
-
-  {/* Right Section */}
-  <Button
-    variant="contained"
-    size="medium"
-    onClick={handleExport}
-    disabled={!isDateRangeValid() || exportLoading}
-    sx={{
-      minWidth: 140,
-      fontWeight: 600
-    }}
-  >
-    {exportLoading ? "Exporting..." : "Export Excel"}
-  </Button>
-</Paper>
+      <DateRangeExport
+  title="Export Orders"
+  filePrefix="Orders"
+  exportApi={orderApi.exportOrders}
+/>
 
 
       
       <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+        
+
+        <Box
+  sx={{
+    display: 'flex',
+    gap: 2,
+    mb: 2,
+    alignItems: 'center'
+  }}
+>
+  <TextField
+    label="Search by TCR Number"
+    variant="outlined"
+    size="small"
+    value={searchInput}
+    onChange={(e) => setSearchInput(e.target.value)}
+    onKeyDown={handleKeyDown}
+    sx={{ width: 300 }}
+  />
+
+  <Button
+    variant="contained"
+    onClick={handleSearch}
+    sx={{
+      height: 40,
+      textTransform: 'none',
+      fontWeight: 600
+    }}
+  >
+    Search
+  </Button>
+
+  {searchQuery && (
+    <Button
+      variant="outlined"
+      color="secondary"
+      onClick={() => {
+        setSearchInput('');
+        setSearchQuery('');
+        setPaginationModel(prev => ({ ...prev, page: 0 }));
+      }}
+      sx={{ height: 40, textTransform: 'none' }}
+    >
+      Clear
+    </Button>
+  )}
+</Box>
+        
+        
+        
         <DataGrid
           rows={orders}
           columns={columns}

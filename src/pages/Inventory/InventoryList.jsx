@@ -22,6 +22,7 @@ import { useAuth } from '../../context/AuthContext';
 import inventoryApi from '../../api/inventory';
 import productApi from '../../api/product';
 import technicianApi from '../../api/technician';
+import DateRangeExport from '../../components/DateRangeExport';
 
 const InventoryList = () => {
   const { user } = useAuth();
@@ -230,8 +231,14 @@ const InventoryList = () => {
         </Button>
 </Box>
 
+<DateRangeExport
+  title="Export Inventory"
+  filePrefix="Inventory"
+  exportApi={inventoryApi.exportAllocations}
+/>
       {/* Allocation Logs DataGrid */}
       <div>
+
       <DataGrid
         rows={allocationLogs}
         columns={columns}

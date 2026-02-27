@@ -19,4 +19,13 @@ export default {
     api.get('/logs', { 
       params: { page, limit } // Pass as query parameters [[8]]
     }),
+
+  exportAllocations: ({ startDate, endDate }) =>
+  api.get('/export', {
+    params: {
+      startDate,
+      endDate
+    },
+    responseType: "blob"
+  }),
 };

@@ -32,11 +32,13 @@ export default {
 // Get Draft Orders with pagination
 getDraftOrders: ({ 
   page = 1, 
-  limit = 10
+  limit = 10,
+  search 
 } = {}) => api.get('/drafts', {
   params: {
     page,
-    limit
+    limit,
+    search
   }
 }),
 
