@@ -350,7 +350,12 @@ const handleDelete = async (id) => {
               onChange={handleChange}
               fullWidth
               required
-              InputProps={{ inputProps: { min: 0 } }}
+              InputProps={{
+            inputProps: {
+                min: 0,
+                step: "0.01",   // 👈 THIS FIXES IT
+            },
+            }}
               error={!!formErrors.commissionAmount}
               helperText={formErrors.commissionAmount}
             />

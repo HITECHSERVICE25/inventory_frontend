@@ -1900,7 +1900,12 @@ const finalAmount = grossSubtotal - totalDiscount;
                       type="number"
                       value={product.quantity}
                       onChange={(e) => handleProductChange(index, 'quantity', e.target.value)}
-                      InputProps={{ inputProps: { min: 1 } }}
+                      InputProps={{
+      inputProps: {
+        min: 0,
+        step: "0.01",   // 👈 THIS FIXES IT
+      },
+    }}
                     />
                   </Grid>
                 </Grid>
