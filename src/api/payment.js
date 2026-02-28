@@ -88,7 +88,16 @@ const paymentApi = {
     { value: 'bank_transfer', label: 'Bank Transfer' },
     { value: 'check', label: 'Check' },
     { value: 'digital_wallet', label: 'Digital Wallet' }
-  ]
+  ],
+
+  exportPayments: ({ startDate, endDate }) =>
+  api.get('/export', {
+    params: {
+      startDate,
+      endDate
+    },
+    responseType: "blob"
+  }),
 };
 
 export default paymentApi;

@@ -34,6 +34,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import paymentApi from '../../api/payment';
 import technicianApi from '../../api/technician';
+import DateRangeExport from '../../components/DateRangeExport';
 
 const PaymentList = () => {
     const { user } = useAuth();
@@ -325,22 +326,22 @@ const PaymentList = () => {
   }
 },
 
-        // {
-        //     field: 'actions',
-        //     headerName: 'Actions',
-        //     width: 100,
-        //     renderCell: (params) => (
-        //         <Tooltip title="View Details">
-        //             <IconButton 
-        //                 onClick={() => handleViewDetails(params.row)}
-        //                 color="primary"
-        //                 size="small"
-        //             >
-        //                 <ViewIcon />
-        //             </IconButton>
-        //         </Tooltip>
-        //     )
-        // }
+        {
+            field: 'actions',
+            headerName: 'Actions',
+            width: 100,
+            renderCell: (params) => (
+                <Tooltip title="View Details">
+                    <IconButton 
+                        onClick={() => handleViewDetails(params.row)}
+                        color="primary"
+                        size="small"
+                    >
+                        <ViewIcon />
+                    </IconButton>
+                </Tooltip>
+            )
+        }
     ];
 
     // Columns for Technician Balances tab
@@ -488,104 +489,235 @@ const PaymentList = () => {
         </Grid>
     );
 
+    // const renderPaymentDetails = () => {
+    //     if (!paymentDetails) return null;
+
+    //     console.log(paymentDetails);
+
+    //     return (
+    //         <Grid container spacing={3}>
+    //             <Grid item xs={12}>
+    //                 <Typography variant="h6" gutterBottom color="primary">
+    //                     Payment Details
+    //                 </Typography>
+    //             </Grid>
+                
+    //             <Grid item xs={12} sm={6}>
+    //                 <Typography variant="subtitle2" color="text.secondary">Technician</Typography>
+    //                 <Typography variant="body1" fontWeight="medium">
+    //                     {paymentDetails.payment?.technician?.name}
+    //                 </Typography>
+    //                 <Typography variant="body2" color="text.secondary">
+    //                     {paymentDetails.payment?.technician?.phone}
+    //                 </Typography>
+    //             </Grid>
+                
+    //             <Grid item xs={12} sm={6}>
+    //                 <Typography variant="subtitle2" color="text.secondary">Amount</Typography>
+    //                 <Typography variant="h5" color="success.main" fontWeight="bold">
+    //                     ₹{(paymentDetails.payment?.amount || 0).toLocaleString()}
+    //                 </Typography>
+    //             </Grid>
+                
+    //             <Grid item xs={12} sm={6}>
+    //                 <Typography variant="subtitle2" color="text.secondary">Payment Method</Typography>
+    //                 <Chip 
+    //                     label={paymentDetails.payment?.method?.replace('_', ' ').toUpperCase() || 'N/A'} 
+    //                     color="primary"
+    //                 />
+    //             </Grid>
+                
+    //             <Grid item xs={12} sm={6}>
+    //                 <Typography variant="subtitle2" color="text.secondary">Reference</Typography>
+    //                 <Typography variant="body1">{paymentDetails.payment?.reference || 'N/A'}</Typography>
+    //             </Grid>
+                
+    //             <Grid item xs={12} sm={6}>
+    //                 <Typography variant="subtitle2" color="text.secondary">Received By</Typography>
+    //                 <Typography variant="body1">{paymentDetails.payment?.receivedBy?.name}</Typography>
+    //             </Grid>
+                
+    //             <Grid item xs={12} sm={6}>
+    //                 <Typography variant="subtitle2" color="text.secondary">Date & Time</Typography>
+    //                 <Typography variant="body1">
+    //                     {paymentDetails.payment?.collectedAt ? 
+    //                         new Date(paymentDetails.payment.collectedAt).toLocaleString() : 'N/A'
+    //                     }
+    //                 </Typography>
+    //             </Grid>
+                
+    //             {paymentDetails.payment?.notes && (
+    //                 <Grid item xs={12}>
+    //                     <Typography variant="subtitle2" color="text.secondary">Notes</Typography>
+    //                     <Typography variant="body1" sx={{ p: 1, bgcolor: 'grey.50', borderRadius: 1 }}>
+    //                         {paymentDetails.payment.notes}
+    //                     </Typography>
+    //                 </Grid>
+    //             )}
+
+    //             {paymentDetails.relatedPayments && paymentDetails.relatedPayments.length > 0 && (
+    //                 <Grid item xs={12}>
+    //                     <Typography variant="subtitle1" gutterBottom>
+    //                         Recent Payments from Same Technician
+    //                     </Typography>
+    //                     <Box sx={{ maxHeight: 200, overflow: 'auto' }}>
+    //                         {paymentDetails.relatedPayments.map((payment, index) => (
+    //                             <Box key={index} sx={{ 
+    //                                 display: 'flex', 
+    //                                 justifyContent: 'space-between', 
+    //                                 alignItems: 'center',
+    //                                 py: 1,
+    //                                 borderBottom: index < paymentDetails.relatedPayments.length - 1 ? 1 : 0,
+    //                                 borderColor: 'divider'
+    //                             }}>
+    //                                 <Typography variant="body2">
+    //                                     {new Date(payment.collectedAt).toLocaleDateString()}
+    //                                 </Typography>
+    //                                 <Typography variant="body2" fontWeight="medium">
+    //                                     ₹{(payment.amount || 0).toLocaleString()}
+    //                                 </Typography>
+    //                                 <Chip 
+    //                                     label={payment.method} 
+    //                                     size="small" 
+    //                                     variant="outlined"
+    //                                 />
+    //                             </Box>
+    //                         ))}
+    //                     </Box>
+    //                 </Grid>
+    //             )}
+    //         </Grid>
+    //     );
+    // };
+
     const renderPaymentDetails = () => {
-        if (!paymentDetails) return null;
+  if (!paymentDetails) return null;
 
-        return (
-            <Grid container spacing={3}>
-                <Grid item xs={12}>
-                    <Typography variant="h6" gutterBottom color="primary">
-                        Payment Details
-                    </Typography>
-                </Grid>
-                
-                <Grid item xs={12} sm={6}>
-                    <Typography variant="subtitle2" color="text.secondary">Technician</Typography>
-                    <Typography variant="body1" fontWeight="medium">
-                        {paymentDetails.payment?.technician?.name}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                        {paymentDetails.payment?.technician?.phone}
-                    </Typography>
-                </Grid>
-                
-                <Grid item xs={12} sm={6}>
-                    <Typography variant="subtitle2" color="text.secondary">Amount</Typography>
-                    <Typography variant="h5" color="success.main" fontWeight="bold">
-                        ₹{(paymentDetails.payment?.amount || 0).toLocaleString()}
-                    </Typography>
-                </Grid>
-                
-                <Grid item xs={12} sm={6}>
-                    <Typography variant="subtitle2" color="text.secondary">Payment Method</Typography>
-                    <Chip 
-                        label={paymentDetails.payment?.method?.replace('_', ' ').toUpperCase() || 'N/A'} 
-                        color="primary"
-                    />
-                </Grid>
-                
-                <Grid item xs={12} sm={6}>
-                    <Typography variant="subtitle2" color="text.secondary">Reference</Typography>
-                    <Typography variant="body1">{paymentDetails.payment?.reference || 'N/A'}</Typography>
-                </Grid>
-                
-                <Grid item xs={12} sm={6}>
-                    <Typography variant="subtitle2" color="text.secondary">Received By</Typography>
-                    <Typography variant="body1">{paymentDetails.payment?.receivedBy?.name}</Typography>
-                </Grid>
-                
-                <Grid item xs={12} sm={6}>
-                    <Typography variant="subtitle2" color="text.secondary">Date & Time</Typography>
-                    <Typography variant="body1">
-                        {paymentDetails.payment?.collectedAt ? 
-                            new Date(paymentDetails.payment.collectedAt).toLocaleString() : 'N/A'
-                        }
-                    </Typography>
-                </Grid>
-                
-                {paymentDetails.payment?.notes && (
-                    <Grid item xs={12}>
-                        <Typography variant="subtitle2" color="text.secondary">Notes</Typography>
-                        <Typography variant="body1" sx={{ p: 1, bgcolor: 'grey.50', borderRadius: 1 }}>
-                            {paymentDetails.payment.notes}
-                        </Typography>
-                    </Grid>
-                )}
+  return (
+    <Grid container spacing={3}>
+      <Grid item xs={12}>
+        <Typography variant="h6" gutterBottom color="primary">
+          Payment Details
+        </Typography>
+      </Grid>
 
-                {paymentDetails.relatedPayments && paymentDetails.relatedPayments.length > 0 && (
-                    <Grid item xs={12}>
-                        <Typography variant="subtitle1" gutterBottom>
-                            Recent Payments from Same Technician
-                        </Typography>
-                        <Box sx={{ maxHeight: 200, overflow: 'auto' }}>
-                            {paymentDetails.relatedPayments.map((payment, index) => (
-                                <Box key={index} sx={{ 
-                                    display: 'flex', 
-                                    justifyContent: 'space-between', 
-                                    alignItems: 'center',
-                                    py: 1,
-                                    borderBottom: index < paymentDetails.relatedPayments.length - 1 ? 1 : 0,
-                                    borderColor: 'divider'
-                                }}>
-                                    <Typography variant="body2">
-                                        {new Date(payment.collectedAt).toLocaleDateString()}
-                                    </Typography>
-                                    <Typography variant="body2" fontWeight="medium">
-                                        ₹{(payment.amount || 0).toLocaleString()}
-                                    </Typography>
-                                    <Chip 
-                                        label={payment.method} 
-                                        size="small" 
-                                        variant="outlined"
-                                    />
-                                </Box>
-                            ))}
-                        </Box>
-                    </Grid>
-                )}
-            </Grid>
-        );
-    };
+      {/* Technician Info */}
+      <Grid item xs={12} sm={6}>
+        <Typography variant="subtitle2" color="text.secondary">
+          Technician
+        </Typography>
+        <Typography variant="body1" fontWeight="medium">
+          {paymentDetails.technician?.name || "N/A"}
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          {paymentDetails.technician?.phone || ""}
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          {paymentDetails.technician?.email || ""}
+        </Typography>
+      </Grid>
+
+      {/* Amount */}
+      <Grid item xs={12} sm={6}>
+        <Typography variant="subtitle2" color="text.secondary">
+          Amount
+        </Typography>
+        <Typography variant="h5" color="success.main" fontWeight="bold">
+          ₹{(paymentDetails.amount || 0).toLocaleString()}
+        </Typography>
+      </Grid>
+
+      {/* Method */}
+      <Grid item xs={12} sm={6}>
+        <Typography variant="subtitle2" color="text.secondary">
+          Payment Method
+        </Typography>
+        <Chip
+          label={
+            paymentDetails.method
+              ? paymentDetails.method.replace(/_/g, " ").toUpperCase()
+              : "N/A"
+          }
+          color="primary"
+          variant="outlined"
+        />
+      </Grid>
+
+      {/* Status */}
+      <Grid item xs={12} sm={6}>
+        <Typography variant="subtitle2" color="text.secondary">
+          Status
+        </Typography>
+        <Chip
+          label={paymentDetails.status?.toUpperCase() || "N/A"}
+          color={paymentDetails.status === "collected" ? "success" : "warning"}
+        />
+      </Grid>
+
+      {/* Reference */}
+      <Grid item xs={12} sm={6}>
+        <Typography variant="subtitle2" color="text.secondary">
+          Reference
+        </Typography>
+        <Typography variant="body1">
+          {paymentDetails.reference || "N/A"}
+        </Typography>
+      </Grid>
+
+      {/* Received By */}
+      <Grid item xs={12} sm={6}>
+        <Typography variant="subtitle2" color="text.secondary">
+          Received By
+        </Typography>
+        <Typography variant="body1">
+          {paymentDetails.receivedBy?.name || "N/A"}
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          {paymentDetails.receivedBy?.email || ""}
+        </Typography>
+      </Grid>
+
+      {/* Collected Date */}
+      <Grid item xs={12} sm={6}>
+        <Typography variant="subtitle2" color="text.secondary">
+          Collected At
+        </Typography>
+        <Typography variant="body1">
+          {paymentDetails.collectedAt
+            ? new Date(paymentDetails.collectedAt).toLocaleString()
+            : "N/A"}
+        </Typography>
+      </Grid>
+
+      {/* Created Date */}
+      <Grid item xs={12} sm={6}>
+        <Typography variant="subtitle2" color="text.secondary">
+          Created At
+        </Typography>
+        <Typography variant="body1">
+          {paymentDetails.createdAt
+            ? new Date(paymentDetails.createdAt).toLocaleString()
+            : "N/A"}
+        </Typography>
+      </Grid>
+
+      {/* Notes */}
+      {paymentDetails.notes && (
+        <Grid item xs={12}>
+          <Typography variant="subtitle2" color="text.secondary">
+            Notes
+          </Typography>
+          <Typography
+            variant="body1"
+            sx={{ p: 1.5, bgcolor: "grey.100", borderRadius: 1 }}
+          >
+            {paymentDetails.notes}
+          </Typography>
+        </Grid>
+      )}
+    </Grid>
+  );
+};
 
     if (loading && technicians.length === 0) {
         return (
@@ -628,6 +760,12 @@ const PaymentList = () => {
                     </Tabs>
 
                     {activeTab === 0 && (
+                        <>
+                        <DateRangeExport
+  title="Export Payment"
+  filePrefix="Payment"
+  exportApi={paymentApi.exportPayments}
+/>
                         <DataGrid
                             rows={payments}
                             columns={paymentColumns}
@@ -645,6 +783,7 @@ const PaymentList = () => {
                                 }
                             }}
                         />
+                        </>
                     )}
 
                     {activeTab === 1 && (
