@@ -55,9 +55,10 @@ const InventoryList = () => {
         const res = await inventoryApi.getAllocationLogs(params);
         //console.log("res:", res);
         //console.log("res.data.data.map((log) => ({ ...log, id: log._id, productName: log.product.name, technicianName: log.technician.name })):", res.data.data.map((log) => ({ ...log, id: log._id, productName: log.product.name, technicianName: log.technician.name })));
-        setAllocationLogs(res.data.data.map((log) => ({ ...log, id: log._id, productName: log.product.name, technicianName: log.technician.name })));
+        setAllocationLogs(res.data.data.map((log) => ({ ...log, id: log._id, productName: log.product?.name || 'N/A', technicianName: log.technician?.name || 'N/A' })));
         setTotalRows(res.data.pagination.total);
       } catch (err) {
+        console.log(err);
         setError('Failed to load allocation logs');
       } finally {
         setLoading(false);
