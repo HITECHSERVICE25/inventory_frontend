@@ -15,6 +15,7 @@ const Login = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
 
+  const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
   const handleTogglePassword = () => {
@@ -29,12 +30,15 @@ const Login = () => {
       password: Yup.string().required('Required')
     }),
     onSubmit: async (values) => {
+      setLoading(true);
       try {
         await login(values);
         navigate('/dashboard');
       } catch (error) {
         console.log(error);
         formik.setErrors({ submit: error.response?.data?.message || error.response?.data?.error?.message || error.response?.data?.error?.details[0]?.message || 'Login failed' });
+      } finally {
+        setLoading(false);
       }
     }
   });
@@ -47,45 +51,36 @@ const Login = () => {
           label="Email"
           name="email"
           margin="normal"
+          autoComplete="email"
           {...formik.getFieldProps('email')}
           error={formik.touched.email && Boolean(formik.errors.email)}
           helperText={formik.touched.email && formik.errors.email}
         />
-        
-        {/* <TextField
-          fullWidth
-          label="Password"
-          type="password"
-          name="password"
-          margin="normal"
-          {...formik.getFieldProps('password')}
-          error={formik.touched.password && Boolean(formik.errors.password)}
-          helperText={formik.touched.password && formik.errors.password}
-        /> */}
 
         <TextField
-  fullWidth
-  label="Password"
-  type={showPassword ? "text" : "password"}
-  name="password"
-  margin="normal"
-  {...formik.getFieldProps("password")}
-  error={formik.touched.password && Boolean(formik.errors.password)}
-  helperText={formik.touched.password && formik.errors.password}
-  InputProps={{
-    endAdornment: (
-      <InputAdornment position="end">
-        <IconButton
-          onClick={handleTogglePassword}
-          edge="end"
-          tabIndex={-1}
-        >
-          {showPassword ? <VisibilityOff /> : <Visibility />}
-        </IconButton>
-      </InputAdornment>
-    ),
-  }}
-/>
+          fullWidth
+          label="Password"
+          type={showPassword ? "text" : "password"}
+          name="password"
+          margin="normal"
+          autoComplete="current-password"
+          {...formik.getFieldProps("password")}
+          error={formik.touched.password && Boolean(formik.errors.password)}
+          helperText={formik.touched.password && formik.errors.password}
+          InputProps={{
+            endAdornment: (
+              <InputAdornment position="end">
+                <IconButton
+                  onClick={handleTogglePassword}
+                  edge="end"
+                  tabIndex={-1}
+                >
+                  {showPassword ? <VisibilityOff /> : <Visibility />}
+                </IconButton>
+              </InputAdornment>
+            ),
+          }}
+        />
 
 
         {formik.errors.submit && (
@@ -99,8 +94,9 @@ const Login = () => {
           fullWidth
           variant="contained"
           sx={{ mt: 3, mb: 2 }}
+          disabled={loading}
         >
-          Sign In
+          {loading ? 'Signing In...' : 'Sign In'}
         </Button>
 
         {/* <Box sx={{ textAlign: 'center' }}>

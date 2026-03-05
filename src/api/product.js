@@ -16,9 +16,9 @@ api.interceptors.request.use(config => {
 export default {
   createProduct: data => api.post('/', data),
   updateProduct: (id, data) => api.put('/' + id, data),
-  getProducts: ({ page = 1, limit = 10 } = {}) => 
-    api.get('/', { 
-      params: { page, limit } // Pass as query parameters [[8]]
+  getProducts: ({ page = 1, limit = 10, search: searchQuery } = {}) =>
+    api.get('/', {
+      params: { page, limit, search: searchQuery } // Pass as query parameters [[8]]
     }),
-    deleteProduct: (id) => api.delete('/' + id)
+  deleteProduct: (id) => api.delete('/' + id)
 };

@@ -15,11 +15,9 @@ api.interceptors.request.use(config => {
 
 export default {
   createCommission: (data) => api.post(`/`, data),
-  updateCommission: (technicianId,productId,data) => api.put(`/${technicianId}/${productId}`, data),
-  getCommissions: ({ page = 1, limit = 10 } = {}) => 
-    api.get('/', { 
-      params: { page, limit } // Pass as query parameters [[8]]
-    }),
+  updateCommission: (technicianId, productId, data) => api.put(`/${technicianId}/${productId}`, data),
+  getCommissions: (params = {}) =>
+    api.get('/', { params }),
   deleteCommission: (id) =>
     api.delete(`/${id}`)
 };

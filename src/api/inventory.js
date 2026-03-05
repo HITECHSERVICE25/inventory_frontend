@@ -15,17 +15,12 @@ api.interceptors.request.use(config => {
 
 export default {
   createAllocation: data => api.post('/allocate', data),
-  getAllocationLogs: ({ page = 1, limit = 10 } = {}) => 
-    api.get('/logs', { 
-      params: { page, limit } // Pass as query parameters [[8]]
-    }),
+  getAllocationLogs: (params = {}) =>
+    api.get('/logs', { params }),
 
   exportAllocations: ({ startDate, endDate }) =>
-  api.get('/export', {
-    params: {
-      startDate,
-      endDate
-    },
-    responseType: "blob"
-  }),
+    api.get('/export', {
+      params: { startDate, endDate },
+      responseType: 'blob'
+    }),
 };

@@ -13,12 +13,17 @@ import {
     InputLabel,
     Select,
     MenuItem,
-    FormHelperText
+    FormHelperText,
+    InputAdornment,
+    Autocomplete,
+    CircularProgress as MuiCircularProgress
 } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
 import CloseIcon from '@mui/icons-material/Close';
+import SearchIcon from '@mui/icons-material/Search';
+import Paper from '@mui/material/Paper';
 import { useAuth } from '../../context/AuthContext';
 import commissionApi from '../../api/commission';
 import productApi from '../../api/product';
@@ -35,69 +40,130 @@ const CommissionList = () => {
         page: 0,
         pageSize: 5
     });
+    const [searchTerm, setSearchTerm] = useState('');
+    const [activeSearchTerm, setActiveSearchTerm] = useState('');
+
     const [openCreateModal, setOpenCreateModal] = useState(false);
     const [openEditModal, setOpenEditModal] = useState(false);
     const [selectedCommission, setSelectedCommission] = useState(null);
     const [products, setProducts] = useState([]);
     const [technicians, setTechnicians] = useState([]);
     const [formData, setFormData] = useState({
-        productId: '',
-        technicianId: '',
+        product: null,
+        technician: null,
         commissionAmount: 0
     });
+    const [formLoading, setFormLoading] = useState(false);
 
     // Fetch commissions
+    const fetchData = async () => {
+        try {
+            setLoading(true);
+            const params = {
+                page: paginationModel.page + 1,
+                limit: paginationModel.pageSize,
+                search: activeSearchTerm
+            };
+            const res = await commissionApi.getCommissions(params);
+
+            setCommissions(
+                (res.data.data?.data || []).map((commission) => ({
+                    ...commission,
+                    id: commission._id,
+                    productName: commission.product?.name ?? 'N/A',
+                    technicianName: commission.technician?.name ?? 'N/A'
+                }))
+            );
+
+            setTotalRows(res.data.data?.pagination?.total);
+        } catch (err) {
+            console.log(err);
+            setError('Failed to load commissions');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     useEffect(() => {
-        const fetchData = async () => {
-            try {
-                const params = {
-                    page: paginationModel.page + 1,
-                    limit: paginationModel.pageSize
-                };
-                const res = await commissionApi.getCommissions(params);
-
-                // console.log("res:", res);
-                
-                setCommissions(
-  res.data.data.data.map((commission) => ({
-    ...commission,
-    id: commission._id,
-    productName: commission.product?.name ?? 'N/A',
-    technicianName: commission.technician?.name ?? 'N/A'
-  }))
-);
-
-                setTotalRows(res.data.data?.pagination?.total);
-            } catch (err) {
-                console.log(err);
-                setError('Failed to load commissions');
-            } finally {
-                setLoading(false);
-            }
-        };
         fetchData();
-    }, [paginationModel]);
+    }, [paginationModel, activeSearchTerm]);
 
-    // Fetch products and technicians
+    const handleSearch = () => {
+        setActiveSearchTerm(searchTerm);
+        setPaginationModel(prev => ({ ...prev, page: 0 }));
+    };
+
+    const handleKeyPress = (e) => {
+        if (e.key === 'Enter') {
+            handleSearch();
+        }
+    };
+
+    const [productSearch, setProductSearch] = useState('');
+    const [technicianSearch, setTechnicianSearch] = useState('');
+    const [loadingProducts, setLoadingProducts] = useState(false);
+    const [loadingTechnicians, setLoadingTechnicians] = useState(false);
+
+    // Fetch products for dropdown
+    const fetchProducts = async (search = '') => {
+        try {
+            setLoadingProducts(true);
+            const res = await productApi.getProducts({ search, limit: 5 });
+            setProducts(res.data.data || []);
+        } catch (err) {
+            console.error('Failed to load products', err);
+        } finally {
+            setLoadingProducts(false);
+        }
+    };
+
+    // Fetch technicians for dropdown
+    const fetchTechnicians = async (search = '') => {
+        try {
+            setLoadingTechnicians(true);
+            const res = await technicianApi.getTechnicians({ search, limit: 5 });
+            setTechnicians(res.data.data || []);
+        } catch (err) {
+            console.error('Failed to load technicians', err);
+        } finally {
+            setLoadingTechnicians(false);
+        }
+    };
+
     useEffect(() => {
-        const fetchResources = async () => {
-            try {
-                const [productsRes, techniciansRes] = await Promise.all([
-                    productApi.getProducts(),
-                    technicianApi.getTechnicians()
-                ]);
-                setProducts(productsRes.data.data);
-                setTechnicians(techniciansRes.data.data);
-            } catch (err) {
-                setError('Failed to load resources');
-            }
-        };
-        fetchResources();
+        fetchProducts();
+        fetchTechnicians();
     }, []);
+
+    // Handle product search in dropdown
+    useEffect(() => {
+        const delayDebounceFn = setTimeout(() => {
+            if (productSearch) {
+                fetchProducts(productSearch);
+            } else if (openCreateModal || openEditModal) {
+                fetchProducts();
+            }
+        }, 500);
+
+        return () => clearTimeout(delayDebounceFn);
+    }, [productSearch]);
+
+    // Handle technician search in dropdown
+    useEffect(() => {
+        const delayDebounceFn = setTimeout(() => {
+            if (technicianSearch) {
+                fetchTechnicians(technicianSearch);
+            } else if (openCreateModal || openEditModal) {
+                fetchTechnicians();
+            }
+        }, 500);
+
+        return () => clearTimeout(delayDebounceFn);
+    }, [technicianSearch]);
 
     // Open modal for creating a commission
     const handleCreateOpen = () => {
-        setFormData({ productId: '', technicianId: '', commissionAmount: 0 });
+        setFormData({ product: null, technician: null, commissionAmount: 0 });
         setFormErrors({});
         setOpenCreateModal(true);
     };
@@ -106,12 +172,12 @@ const CommissionList = () => {
     const handleEditOpen = (commission) => {
         setSelectedCommission(commission);
         setFormData({
-          productId: commission.product._id, // Use product._id instead of productId
-          technicianId: commission.technician._id, // Use technician._id instead of technicianId
-          commissionAmount: commission.amount
+            product: commission.product,
+            technician: commission.technician,
+            commissionAmount: commission.amount
         });
         setOpenEditModal(true);
-      };
+    };
 
     // Close modal
     const handleClose = () => {
@@ -121,21 +187,19 @@ const CommissionList = () => {
         setFormErrors({});
     };
 
-    // Handle form field changes
     const handleChange = (e) => {
         const { name, value } = e.target;
         setFormData({ ...formData, [name]: value });
         setFormErrors({ ...formErrors, [name]: null });
     };
 
-    // Validate form fields
     const validateForm = () => {
         const errors = {};
-        if (!formData.productId) {
-            errors.productId = 'Product is required';
+        if (!formData.product) {
+            errors.product = 'Product is required';
         }
-        if (!formData.technicianId) {
-            errors.technicianId = 'Technician is required';
+        if (!formData.technician) {
+            errors.technician = 'Technician is required';
         }
         if (formData.commissionAmount <= 0) {
             errors.commissionAmount = 'Commission amount must be a positive number';
@@ -144,31 +208,19 @@ const CommissionList = () => {
         return Object.keys(errors).length === 0;
     };
 
-    // Create a new commission
     const handleCreate = async (e) => {
         e.preventDefault();
         if (!validateForm()) return;
-
+        setFormLoading(true);
+        setError('');
         try {
             await commissionApi.createCommission({
-                technicianId: formData.technicianId, productId: formData.productId,
+                technicianId: formData.technician?._id,
+                productId: formData.product?._id,
                 amount: formData.commissionAmount
             });
             handleClose();
-
-            // Refresh data
-            const res = await commissionApi.getCommissions({
-                page: paginationModel.page + 1,
-                limit: paginationModel.pageSize
-            });
-            setCommissions(
-                res.data.data.data.map((commission) => ({
-                    ...commission,
-                    id: commission._id,
-                    productName: commission.product.name,
-                    technicianName: commission.technician.name
-                }))
-            );
+            fetchData();
         } catch (err) {
             const serverErrors = err.response?.data?.error?.details || {};
             const formattedErrors = {};
@@ -177,40 +229,25 @@ const CommissionList = () => {
             });
             setFormErrors(formattedErrors);
             setError(err.response?.data?.message || 'Failed to create commission');
+        } finally {
+            setFormLoading(false);
         }
     };
 
-    // Update an existing commission
     const handleUpdate = async (e) => {
         e.preventDefault();
         if (!validateForm()) return;
-
+        if (!selectedCommission) return;
+        setFormLoading(true);
+        setError('');
         try {
-            if (!selectedCommission) {
-                throw new Error('No commission selected for update');
-            }
-
             await commissionApi.updateCommission(
                 selectedCommission.technician._id,
                 selectedCommission.product._id,
                 { amount: formData.commissionAmount }
             );
             handleClose();
-
-            // Refresh data
-            const res = await commissionApi.getCommissions({
-                page: paginationModel.page + 1,
-                limit: paginationModel.pageSize
-            });
-            setCommissions(
-                res.data.data.data.map((commission) => ({
-                    ...commission,
-                    id: commission._id,
-                    productName: commission.product.name,
-                    technicianName: commission.technician.name,
-                    
-                }))
-            );
+            fetchData();
         } catch (err) {
             const serverErrors = err.response?.data?.error?.details || {};
             const formattedErrors = {};
@@ -219,45 +256,27 @@ const CommissionList = () => {
             });
             setFormErrors(formattedErrors);
             setError(err.response?.data?.message || 'Failed to update commission');
+        } finally {
+            setFormLoading(false);
         }
     };
 
-    // Delete a commission
-const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this commission?')) {
-        return;
-    }
+    const handleDelete = async (id) => {
+        if (!window.confirm('Are you sure you want to delete this commission?')) {
+            return;
+        }
 
-    try {
-        setLoading(true);
+        try {
+            setLoading(true);
+            await commissionApi.deleteCommission(id);
+            fetchData();
+        } catch (err) {
+            setError(err.response?.data?.message || 'Failed to delete commission');
+        } finally {
+            setLoading(false);
+        }
+    };
 
-        await commissionApi.deleteCommission(id);
-
-        // Refresh current page data (server pagination safe)
-        const res = await commissionApi.getCommissions({
-            page: paginationModel.page + 1,
-            limit: paginationModel.pageSize
-        });
-
-        setCommissions(
-            res.data.data.data.map((commission) => ({
-                ...commission,
-                id: commission._id,
-                productName: commission.product?.name ?? 'N/A',
-                technicianName: commission.technician?.name ?? 'N/A'
-            }))
-        );
-
-        setTotalRows(res.data.data?.pagination?.total);
-    } catch (err) {
-        setError(err.response?.data?.message || 'Failed to delete commission');
-    } finally {
-        setLoading(false);
-    }
-};
-
-
-    // DataGrid columns
     const columns = [
         { field: 'productName', headerName: 'Product', width: 200 },
         { field: 'technicianName', headerName: 'Technician', width: 200 },
@@ -266,7 +285,7 @@ const handleDelete = async (id) => {
             field: 'createdAt',
             headerName: 'Date',
             width: 200,
-            valueFormatter: (params) => new Date(params).toLocaleDateString()
+            valueFormatter: (params) => params ? new Date(params).toLocaleDateString() : 'N/A'
         },
         {
             field: 'actions',
@@ -289,94 +308,131 @@ const handleDelete = async (id) => {
         }
     ];
 
-    // Render form fields
     const renderFormFields = () => (
         <Grid container spacing={2}>
-          {/* Technician Selection (disabled in edit mode) */}
-          <Grid item xs={12} sm={6}>
-            <FormControl fullWidth error={!!formErrors.technicianId} disabled={openEditModal}>
-              <InputLabel>Technician*</InputLabel>
-              <Select
-                name="technicianId"
-                value={formData.technicianId || ''}
-                onChange={handleChange}
-                renderValue={(selected) => {
-                  const selectedTechnician = technicians.find((t) => t._id === selected);
-                  return selectedTechnician ? selectedTechnician.name : '';
-                }}
-                disabled={openEditModal} // Disable in edit mode
-              >
-                {technicians?.map((technician) => (
-                  <MenuItem key={technician._id} value={technician._id}>
-                    {technician.name}
-                  </MenuItem>
-                ))}
-              </Select>
-              <FormHelperText>{formErrors.technicianId}</FormHelperText>
-            </FormControl>
-          </Grid>
-      
-          {/* Product Selection (disabled in edit mode) */}
-          <Grid item xs={12} sm={6}>
-            <FormControl fullWidth error={!!formErrors.productId} disabled={openEditModal}>
-              <InputLabel>Product*</InputLabel>
-              <Select
-                name="productId"
-                value={formData.productId || ''}
-                onChange={handleChange}
-                renderValue={(selected) => {
-                  const selectedProduct = products.find((p) => p._id === selected);
-                  return selectedProduct ? selectedProduct.name : '';
-                }}
-                disabled={openEditModal} // Disable in edit mode
-              >
-                {products?.map((product) => (
-                  <MenuItem key={product._id} value={product._id}>
-                    {product.name}
-                  </MenuItem>
-                ))}
-              </Select>
-              <FormHelperText>{formErrors.productId}</FormHelperText>
-            </FormControl>
-          </Grid>
-      
-          {/* Commission Amount Input */}
-          <Grid item xs={12} sm={6}>
-            <TextField
-              label="Commission Amount (₹)*"
-              name="commissionAmount"
-              type="number"
-              value={formData.commissionAmount}
-              onChange={handleChange}
-              fullWidth
-              required
-              InputProps={{
-            inputProps: {
-                min: 0,
-                step: "0.01",   // 👈 THIS FIXES IT
-            },
-            }}
-              error={!!formErrors.commissionAmount}
-              helperText={formErrors.commissionAmount}
-            />
-          </Grid>
+            <Grid item xs={12} sm={6}>
+                <Autocomplete
+                    disabled={openEditModal}
+                    options={technicians}
+                    getOptionLabel={(option) => option.name || ''}
+                    isOptionEqualToValue={(option, value) => option._id === value._id}
+                    value={formData.technician}
+                    onInputChange={(event, newInputValue) => {
+                        setTechnicianSearch(newInputValue);
+                    }}
+                    onChange={(event, newValue) => {
+                        setFormData({ ...formData, technician: newValue });
+                        setFormErrors({ ...formErrors, technician: null });
+                    }}
+                    loading={loadingTechnicians}
+                    renderInput={(params) => (
+                        <TextField
+                            {...params}
+                            label="Technician*"
+                            error={!!formErrors.technician}
+                            helperText={formErrors.technician}
+                            InputProps={{
+                                ...params.InputProps,
+                                endAdornment: (
+                                    <>
+                                        {loadingTechnicians ? <MuiCircularProgress color="inherit" size={20} /> : null}
+                                        {params.InputProps.endAdornment}
+                                    </>
+                                ),
+                            }}
+                        />
+                    )}
+                />
+            </Grid>
+
+            <Grid item xs={12} sm={6}>
+                <Autocomplete
+                    disabled={openEditModal}
+                    options={products}
+                    getOptionLabel={(option) => option.name || ''}
+                    isOptionEqualToValue={(option, value) => option._id === value._id}
+                    value={formData.product}
+                    onInputChange={(event, newInputValue) => {
+                        setProductSearch(newInputValue);
+                    }}
+                    onChange={(event, newValue) => {
+                        setFormData({ ...formData, product: newValue });
+                        setFormErrors({ ...formErrors, product: null });
+                    }}
+                    loading={loadingProducts}
+                    renderInput={(params) => (
+                        <TextField
+                            {...params}
+                            label="Product*"
+                            error={!!formErrors.product}
+                            helperText={formErrors.product}
+                            InputProps={{
+                                ...params.InputProps,
+                                endAdornment: (
+                                    <>
+                                        {loadingProducts ? <MuiCircularProgress color="inherit" size={20} /> : null}
+                                        {params.InputProps.endAdornment}
+                                    </>
+                                ),
+                            }}
+                        />
+                    )}
+                />
+            </Grid>
+
+            <Grid item xs={12} sm={6}>
+                <TextField
+                    label="Commission Amount (₹)*"
+                    name="commissionAmount"
+                    type="number"
+                    value={formData.commissionAmount}
+                    onChange={handleChange}
+                    fullWidth
+                    required
+                    InputProps={{
+                        inputProps: {
+                            min: 0,
+                            step: "0.01",
+                        },
+                    }}
+                    error={!!formErrors.commissionAmount}
+                    helperText={formErrors.commissionAmount}
+                />
+            </Grid>
         </Grid>
-      );
+    );
 
     if (loading) return <CircularProgress />;
 
     return (
-        <Box sx={{ height: 600, width: '100%' }}>
-            {/* Header */}
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+        <Box sx={{ height: 'calc(100vh - 200px)', width: '100%', display: 'flex', flexDirection: 'column' }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 2 }}>
                 <Typography variant="h5">Commissions</Typography>
-                <Button variant="contained" onClick={handleCreateOpen}>
-                    Add Commission
-                </Button>
+                <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                    <TextField
+                        size="small"
+                        placeholder="Search commissions..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        onKeyDown={handleKeyPress}
+                        InputProps={{
+                            startAdornment: (
+                                <InputAdornment position="start">
+                                    <SearchIcon />
+                                </InputAdornment>
+                            ),
+                        }}
+                    />
+                    <Button variant="outlined" onClick={handleSearch}>
+                        Search
+                    </Button>
+                    <Button variant="contained" onClick={handleCreateOpen}>
+                        Add Commission
+                    </Button>
+                </Box>
             </Box>
 
-            {/* Commissions DataGrid */}
-            <div>
+            <Paper sx={{ flexGrow: 1, width: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
                 <DataGrid
                     rows={commissions}
                     columns={columns}
@@ -386,29 +442,37 @@ const handleDelete = async (id) => {
                     onPaginationModelChange={setPaginationModel}
                     pageSizeOptions={[5, 10, 25]}
                     loading={loading}
-                    initialState={{
-                        pagination: {
-                            paginationModel: { page: 0, pageSize: 5 },
+                    disableSelectionOnClick
+                    autoHeight={false}
+                    sx={{
+                        flexGrow: 1,
+                        '& .MuiDataGrid-footerContainer': {
+                            position: 'sticky',
+                            bottom: 0,
+                            backgroundColor: 'white',
+                            zIndex: 1,
                         },
+                        border: 'none',
                     }}
                 />
-            </div>
+            </Paper>
 
-            {/* Create Modal */}
             <Modal
                 open={openCreateModal}
                 onClose={handleClose}
+        disableScrollLock 
+
                 sx={{
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    overflow: 'hidden'
+                    overflow: 'auto'
                 }}
             >
                 <Box
                     sx={{
                         position: 'relative',
-                        maxWidth: { xs: '95vw', md: 600 },
+                        width: { xs: '95vw', md: 600 },
                         maxHeight: '90vh',
                         overflowY: 'auto',
                         bgcolor: 'background.paper',
@@ -433,15 +497,21 @@ const handleDelete = async (id) => {
                     </IconButton>
                     <form onSubmit={handleCreate}>
                         {renderFormFields()}
-                        {error && <div style={{ color: 'red', mt: 2 }}>{error}</div>}
-                        <Button type="submit" variant="contained" fullWidth sx={{ mt: 3 }}>
-                            Create Commission
+                        {error && <Typography color="error" sx={{ mt: 2 }}>{error}</Typography>}
+                        <Button
+                            type="submit"
+                            variant="contained"
+                            fullWidth
+                            sx={{ mt: 3 }}
+                            disabled={formLoading}
+                            startIcon={formLoading ? <CircularProgress size={20} color="inherit" /> : null}
+                        >
+                            {formLoading ? "Creating..." : "Create Commission"}
                         </Button>
                     </form>
                 </Box>
             </Modal>
 
-            {/* Edit Modal */}
             <Modal
                 open={openEditModal}
                 onClose={handleClose}
@@ -449,7 +519,7 @@ const handleDelete = async (id) => {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    overflow: 'hidden'
+                    overflow: 'auto'
                 }}
             >
                 <Box
@@ -480,9 +550,16 @@ const handleDelete = async (id) => {
                     </IconButton>
                     <form onSubmit={handleUpdate}>
                         {renderFormFields()}
-                        {error && <div style={{ color: 'red', mt: 2 }}>{error}</div>}
-                        <Button type="submit" variant="contained" fullWidth sx={{ mt: 3 }}>
-                            Update Commission
+                        {error && <Typography color="error" sx={{ mt: 2 }}>{error}</Typography>}
+                        <Button
+                            type="submit"
+                            variant="contained"
+                            fullWidth
+                            sx={{ mt: 3 }}
+                            disabled={formLoading}
+                            startIcon={formLoading ? <CircularProgress size={20} color="inherit" /> : null}
+                        >
+                            {formLoading ? "Updating..." : "Update Commission"}
                         </Button>
                     </form>
                 </Box>

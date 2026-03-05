@@ -15,7 +15,10 @@ api.interceptors.request.use(config => {
 
 export default {
   createCompany: data => api.post('/', data),
-  getCompanies: () => api.get('/'),
-  updateCompany: (id, data) => api.put('/'+id, data),
-  deleteCompany: (id) => api.delete('/'+id),
+  getCompanies: ({ page = 1, limit = 10, search: searchQuery } = {}) =>
+    api.get('/', {
+      params: { page, limit, search: searchQuery }
+    }),
+  updateCompany: (id, data) => api.put('/' + id, data),
+  deleteCompany: (id) => api.delete('/' + id),
 };

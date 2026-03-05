@@ -14,7 +14,10 @@ import {
     IconButton,
     FormHelperText,
     Grid,
-    Typography
+    Typography,
+    Autocomplete,
+    CircularProgress as MuiCircularProgress,
+    Paper
 } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
 import CloseIcon from '@mui/icons-material/Close';
@@ -26,6 +29,9 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import technicianApi from '../../api/technician';
 import companyApi from '../../api/company';
+
+import SearchIcon from '@mui/icons-material/Search';
+import InputAdornment from '@mui/material/InputAdornment';
 
 const TechnicianList = () => {
     const { user } = useAuth();
@@ -40,73 +46,108 @@ const TechnicianList = () => {
         pageSize: 5
     });
 
+    const [searchTerm, setSearchTerm] = useState('');
+    const [activeSearchTerm, setActiveSearchTerm] = useState('');
+
     // Modal states
     const [openCreateModal, setOpenCreateModal] = useState(false);
     const [openEditModal, setOpenEditModal] = useState(false);
     const [selectedTechnician, setSelectedTechnician] = useState(null);
 
     const [formData, setFormData] = useState({
-    name: '',
-    phone: '',
-    email: '',
-    address: {
-        street: '',
-        city: '',
-        state: '',
-        pincode: ''
-    },
-    aadhaar: '',
-    pan: '',
-    serviceRate: 0,
-    miscShare: 0, // ✅ NEW
-    companies: [],
-    isBlocked: false
-});
+        name: '',
+        phone: '',
+        email: '',
+        address: {
+            street: '',
+            city: '',
+            state: '',
+            pincode: ''
+        },
+        aadhaar: '',
+        pan: '',
+        serviceRate: 0,
+        miscShare: 0,
+        companies: [],
+        isBlocked: false
+    });
+    const [formLoading, setFormLoading] = useState(false);
 
+    const [loadingCompanies, setLoadingCompanies] = useState(false);
+    const [companySearch, setCompanySearch] = useState('');
+
+    const fetchCompaniesDropdown = async (search = '') => {
+        try {
+            setLoadingCompanies(true);
+            const res = await companyApi.getCompanies({ search, limit: 5 });
+            setCompanies(res.data.data || []);
+        } catch (err) {
+            console.error('Failed to load companies', err);
+        } finally {
+            setLoadingCompanies(false);
+        }
+    };
 
     useEffect(() => {
-        const fetchData = async () => {
-            try {
-                // Fetch technicians with pagination
-                const techParams = {
-                    page: paginationModel.page + 1,
-                    limit: paginationModel.pageSize
-                };
-                const techRes = await technicianApi.getTechnicians(techParams);
-                setTechnicians(techRes.data.data.map(t => ({ ...t, id: t._id })));
-                setTotalRows(techRes.data.pagination.total);
+        const timer = setTimeout(() => {
+            if (companySearch) fetchCompaniesDropdown(companySearch);
+            else if (openCreateModal || openEditModal) fetchCompaniesDropdown();
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [companySearch]);
 
-                // Fetch companies for dropdown
-                const companyRes = await companyApi.getCompanies();
-                setCompanies(companyRes.data.data);
-            } catch (err) {
-                setError('Failed to load data');
-            } finally {
-                setLoading(false);
-            }
-        };
+    const fetchData = async () => {
+        try {
+            setLoading(true);
+            const techParams = {
+                page: paginationModel.page + 1,
+                limit: paginationModel.pageSize,
+                search: activeSearchTerm
+            };
+            const techRes = await technicianApi.getTechnicians(techParams);
+            setTechnicians((techRes.data.data || []).map(t => ({ ...t, id: t._id })));
+            setTotalRows(techRes.data.pagination?.total || 0);
+        } catch (err) {
+            setError('Failed to load data');
+        } finally {
+            setLoading(false);
+        }
+    };
 
+    useEffect(() => {
         fetchData();
-    }, [paginationModel]);
+        fetchCompaniesDropdown();
+    }, [paginationModel, activeSearchTerm]);
+
+    const handleSearch = () => {
+        setActiveSearchTerm(searchTerm);
+        setPaginationModel(prev => ({ ...prev, page: 0 }));
+    };
+
+    const handleKeyPress = (e) => {
+        if (e.key === 'Enter') {
+            handleSearch();
+        }
+    };
 
     const handleCreateOpen = () => {
         setFormData({
-    name: '',
-    phone: '',
-    email: '',
-    address: {
-        street: '',
-        city: '',
-        state: '',
-        pincode: ''
-    },
-    aadhaar: '',
-    pan: '',
-    serviceRate: 0,
-    miscShare: 0, // ✅ NEW
-    companies: [],
-    isBlocked: false
-});
+            name: '',
+            phone: '',
+            email: '',
+            address: {
+                street: '',
+                city: '',
+                state: '',
+                pincode: ''
+            },
+            aadhaar: '',
+            pan: '',
+            serviceRate: 0,
+            miscShare: 0, // ✅ NEW
+            companies: [],
+            isBlocked: false
+        });
 
         setFormErrors({});
         setOpenCreateModal(true);
@@ -116,7 +157,7 @@ const TechnicianList = () => {
         setSelectedTechnician(technician);
         setFormData({
             ...technician,
-            companies: technician.companies.map(c => c._id)
+            companies: technician.companies || []
         });
         setFormErrors({});
         setOpenEditModal(true);
@@ -198,9 +239,9 @@ const TechnicianList = () => {
         }
 
         // Misc share validation (0–100)
-if (formData.miscShare < 0 || formData.miscShare > 100) {
-    errors.miscShare = 'Must be between 0 and 100';
-}
+        if (formData.miscShare < 0 || formData.miscShare > 100) {
+            errors.miscShare = 'Must be between 0 and 100';
+        }
 
 
         // Companies validation
@@ -212,76 +253,67 @@ if (formData.miscShare < 0 || formData.miscShare > 100) {
         return Object.keys(errors).length === 0;
     };
 
-    
+
 
     // Create a new technician
-const handleCreate = async (e) => {
-
-    e.preventDefault();
-
+    const handleCreate = async (e) => {
+        e.preventDefault();
         if (!validateForm()) return;
+        setFormLoading(true);
+        setError('');
+        try {
+            const submissionData = {
+                ...formData,
+                companies: formData.companies.map(c => c._id || c)
+            };
+            await technicianApi.createTechnician(submissionData);
+            handleClose();
+            fetchData();
+        } catch (err) {
+            console.log("error:", err);
+            const serverErrors = err.response?.data?.error?.details || {};
+            const formattedErrors = {};
 
-    try {
-      await technicianApi.createTechnician(formData);
-      handleClose();
-  
-      // Refresh data
-      const res = await technicianApi.getTechnicians({
-        page: paginationModel.page + 1,
-        limit: paginationModel.pageSize,
-      });
-      setTechnicians(res.data.data.map((t) => ({ ...t, id: t._id })));
-      setTotalRows(res.data.totalCount);
-    } catch (err) {
-        console.log("error:", err);
-      const serverErrors = err.response?.data?.error?.details || {};
-      const formattedErrors = {};
-  
-      // Format server validation errors
-      Object.keys(serverErrors).forEach((field) => {
-        formattedErrors[field] = serverErrors[field].message;
-      });
-  
-      setFormErrors(formattedErrors);
-      setError(err.response?.data?.error?.message || err.response?.data?.message || 'Failed to create technician');
-    }
-  };
-  
-  // Update an existing technician
-  const handleUpdate = async (e) => {
+            Object.keys(serverErrors).forEach((field) => {
+                formattedErrors[field] = serverErrors[field].message;
+            });
 
-    e.preventDefault();
+            setFormErrors(formattedErrors);
+            setError(err.response?.data?.error?.message || err.response?.data?.message || 'Failed to create technician');
+        } finally {
+            setFormLoading(false);
+        }
+    };
 
+    // Update an existing technician
+    const handleUpdate = async (e) => {
+        e.preventDefault();
         if (!validateForm()) return;
+        if (!selectedTechnician) return;
+        setFormLoading(true);
+        setError('');
+        try {
+            const submissionData = {
+                ...formData,
+                companies: formData.companies.map(c => c._id || c)
+            };
+            await technicianApi.updateTechnician(selectedTechnician._id, submissionData);
+            handleClose();
+            fetchData();
+        } catch (err) {
+            const serverErrors = err.response?.data?.error?.details || {};
+            const formattedErrors = {};
 
-    try {
-      if (!selectedTechnician) {
-        throw new Error('No technician selected for update');
-      }
-  
-      await technicianApi.updateTechnician(selectedTechnician._id, formData);
-      handleClose();
-  
-      // Refresh data
-      const res = await technicianApi.getTechnicians({
-        page: paginationModel.page + 1,
-        limit: paginationModel.pageSize,
-      });
-      setTechnicians(res.data.data.map((t) => ({ ...t, id: t._id })));
-      setTotalRows(res.data.totalCount);
-    } catch (err) {
-      const serverErrors = err.response?.data?.error?.details || {};
-      const formattedErrors = {};
-  
-      // Format server validation errors
-      Object.keys(serverErrors).forEach((field) => {
-        formattedErrors[field] = serverErrors[field].message;
-      });
-  
-      setFormErrors(formattedErrors);
-      setError(err.response?.data?.error?.message || err.response?.data?.message || 'Failed to update technician');
-    }
-  };
+            Object.keys(serverErrors).forEach((field) => {
+                formattedErrors[field] = serverErrors[field].message;
+            });
+
+            setFormErrors(formattedErrors);
+            setError(err.response?.data?.error?.message || err.response?.data?.message || 'Failed to update technician');
+        } finally {
+            setFormLoading(false);
+        }
+    };
 
     const handleBlockToggle = async (id, isBlocked) => {
         try {
@@ -305,8 +337,8 @@ const handleCreate = async (e) => {
             width: 200,
             renderCell: (params) => (
                 <div>
-                    {params.value.map(company => (
-                        <Chip key={company._id} label={company.name} sx={{ mb: 0.5 }} />
+                    {(params.value || []).map(company => (
+                        <Chip key={company?._id || Math.random()} label={company?.name || 'N/A'} sx={{ mb: 0.5 }} />
                     ))}
                 </div>
             )
@@ -463,21 +495,21 @@ const handleCreate = async (e) => {
                 />
             </Grid>
             <Grid item xs={12} sm={6} md={4}>
-    <TextField
-        label="Misc Share (%)"
-        name="miscShare"
-        type="number"
-        value={formData.miscShare}
-        onChange={handleChange}
-        fullWidth
-        InputProps={{
-            inputProps: { min: 0, max: 100, step: 0.01 },
-            sx: { maxWidth: '150px' }
-        }}
-        error={!!formErrors.miscShare}
-        helperText={formErrors.miscShare}
-    />
-</Grid>
+                <TextField
+                    label="Misc Share (%)"
+                    name="miscShare"
+                    type="number"
+                    value={formData.miscShare}
+                    onChange={handleChange}
+                    fullWidth
+                    InputProps={{
+                        inputProps: { min: 0, max: 100, step: 0.01 },
+                        sx: { maxWidth: '150px' }
+                    }}
+                    error={!!formErrors.miscShare}
+                    helperText={formErrors.miscShare}
+                />
+            </Grid>
 
             <Grid item xs={12} sm={6} md={4}>
                 <TextField
@@ -497,40 +529,42 @@ const handleCreate = async (e) => {
                 />
             </Grid>
 
-            {/* Company Selection */}
             <Grid item xs={12}>
-                <FormControl fullWidth error={!!formErrors.companies}>
-                    <InputLabel>Companies*</InputLabel>
-                    <Select
-                        multiple
-                        name="companies"
-                        value={formData.companies}
-                        onChange={handleCompanyChange}
-                        renderValue={(selected) => (
-                            <Box sx={{
-                                display: 'flex',
-                                flexWrap: 'wrap',
-                                gap: 0.5,
-                                maxWidth: '100%' // Prevent overflow
-                            }}>
-                                {selected.map((value) => (
-                                    <Chip
-                                        key={value}
-                                        label={companies.find(c => c._id === value)?.name}
-                                        sx={{ maxWidth: '100%', overflow: 'hidden' }} // Responsive chips
-                                    />
-                                ))}
-                            </Box>
-                        )}
-                    >
-                        {companies.map((company) => (
-                            <MenuItem key={company._id} value={company._id}>
-                                {company.name}
-                            </MenuItem>
-                        ))}
-                    </Select>
-                    <FormHelperText>{formErrors.companies}</FormHelperText>
-                </FormControl>
+                <Autocomplete
+                    multiple
+                    options={companies}
+                    getOptionLabel={(option) => option.name || ''}
+                    isOptionEqualToValue={(option, value) => (option._id || option) === (value._id || value)}
+                    value={formData.companies}
+                    onInputChange={(event, newInputValue) => {
+                        setCompanySearch(newInputValue);
+                    }}
+                    onChange={(event, newValue) => {
+                        setFormData({
+                            ...formData,
+                            companies: newValue
+                        });
+                        setFormErrors({ ...formErrors, companies: null });
+                    }}
+                    loading={loadingCompanies}
+                    renderInput={(params) => (
+                        <TextField
+                            {...params}
+                            label="Companies*"
+                            error={!!formErrors.companies}
+                            helperText={formErrors.companies}
+                            InputProps={{
+                                ...params.InputProps,
+                                endAdornment: (
+                                    <>
+                                        {loadingCompanies ? <MuiCircularProgress color="inherit" size={20} /> : null}
+                                        {params.InputProps.endAdornment}
+                                    </>
+                                ),
+                            }}
+                        />
+                    )}
+                />
             </Grid>
         </Grid>
     );
@@ -538,34 +572,61 @@ const handleCreate = async (e) => {
     if (loading) return <CircularProgress />;
 
     return (
-        <Box sx={{ height: 600, width: '100%' }}>
-            
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-              <Typography variant="h5">Technicians</Typography>
-              <Button
-                variant="contained"
-                onClick={handleCreateOpen}
-            >
-                Add Technician
-            </Button>
+        <Box sx={{ height: 'calc(100vh - 200px)', width: '100%', display: 'flex', flexDirection: 'column' }}>
+
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 2 }}>
+                <Typography variant="h5">Technicians</Typography>
+                <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                    <TextField
+                        size="small"
+                        placeholder="Search technicians..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        onKeyDown={handleKeyPress}
+                        InputProps={{
+                            startAdornment: (
+                                <InputAdornment position="start">
+                                    <SearchIcon />
+                                </InputAdornment>
+                            ),
+                        }}
+                    />
+                    <Button variant="outlined" onClick={handleSearch}>
+                        Search
+                    </Button>
+                    <Button
+                        variant="contained"
+                        onClick={handleCreateOpen}
+                    >
+                        Add Technician
+                    </Button>
+                </Box>
             </Box>
-            <div>
-            <DataGrid
-                rows={technicians}
-                columns={columns}
-                rowCount={totalRows}
-                paginationMode="server"
-                paginationModel={paginationModel}
-                onPaginationModelChange={setPaginationModel}
-                pageSizeOptions={[5, 10, 25]}
-                loading={loading}
-                initialState={{
-                    pagination: {
-                        paginationModel: { page: 0, pageSize: 5 },
-                    },
-                }}
-            />
-            </div>
+
+            <Paper sx={{ flexGrow: 1, width: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                <DataGrid
+                    rows={technicians}
+                    columns={columns}
+                    rowCount={totalRows}
+                    paginationMode="server"
+                    paginationModel={paginationModel}
+                    onPaginationModelChange={setPaginationModel}
+                    pageSizeOptions={[5, 10, 25]}
+                    loading={loading}
+                    disableSelectionOnClick
+                    autoHeight={false}
+                    sx={{
+                        flexGrow: 1,
+                        '& .MuiDataGrid-footerContainer': {
+                            position: 'sticky',
+                            bottom: 0,
+                            backgroundColor: 'white',
+                            zIndex: 1,
+                        },
+                        border: 'none',
+                    }}
+                />
+            </Paper>
 
             {/* Create Modal */}
             <Modal
@@ -575,7 +636,7 @@ const handleCreate = async (e) => {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    overflow: 'hidden'
+                    overflow: 'auto',
                 }}
             >
                 <Box
@@ -609,9 +670,16 @@ const handleCreate = async (e) => {
 
                     <form onSubmit={handleCreate}>
                         {renderFormFields()}
-                        {error && <div style={{ color: 'red', mt: 2 }}>{error}</div>}
-                        <Button type="submit" variant="contained" fullWidth sx={{ mt: 3 }}>
-                            Create Technician
+                        {error && <Typography color="error" sx={{ mt: 2 }}>{error}</Typography>}
+                        <Button
+                            type="submit"
+                            variant="contained"
+                            fullWidth
+                            sx={{ mt: 3 }}
+                            disabled={formLoading}
+                            startIcon={formLoading ? <CircularProgress size={20} color="inherit" /> : null}
+                        >
+                            {formLoading ? "Creating..." : "Create Technician"}
                         </Button>
                     </form>
                 </Box>
@@ -624,7 +692,7 @@ const handleCreate = async (e) => {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    overflow: 'hidden' // Disable body scroll [[2]]
+                    overflow: 'auto',
                 }}
             >
                 <Box
@@ -658,9 +726,16 @@ const handleCreate = async (e) => {
 
                     <form onSubmit={handleUpdate}>
                         {renderFormFields()}
-                        {error && <div style={{ color: 'red', mt: 2 }}>{error}</div>}
-                        <Button type="submit" variant="contained" fullWidth sx={{ mt: 3 }}>
-                            Update Technician
+                        {error && <Typography color="error" sx={{ mt: 2 }}>{error}</Typography>}
+                        <Button
+                            type="submit"
+                            variant="contained"
+                            fullWidth
+                            sx={{ mt: 3 }}
+                            disabled={formLoading}
+                            startIcon={formLoading ? <CircularProgress size={20} color="inherit" /> : null}
+                        >
+                            {formLoading ? "Updating..." : "Update Technician"}
                         </Button>
                     </form>
                 </Box>
