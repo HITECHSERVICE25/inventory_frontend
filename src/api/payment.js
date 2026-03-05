@@ -18,13 +18,13 @@ const paymentApi = {
   /**
    * Record a payment for a technician
    */
-  recordPayment: (technicianId, paymentData) => 
+  recordPayment: (technicianId, paymentData) =>
     api.post(`/technicians/${technicianId}/payments`, paymentData),
 
   /**
    * Get outstanding balance for a technician
    */
-  getTechnicianBalance: (technicianId) => 
+  getTechnicianBalance: (technicianId) =>
     api.get(`/technicians/${technicianId}/balance`),
 
   /**
@@ -32,8 +32,8 @@ const paymentApi = {
    */
   getTechnicianPaymentHistory: (technicianId, params = {}) => {
     const { page = 1, limit = 10, ...otherParams } = params;
-    return api.get(`/technicians/${technicianId}/payments`, { 
-      params: { page, limit, ...otherParams } 
+    return api.get(`/technicians/${technicianId}/payments`, {
+      params: { page, limit, ...otherParams }
     });
   },
 
@@ -42,8 +42,8 @@ const paymentApi = {
    */
   getTechniciansWithBalances: (params = {}) => {
     const { page = 1, limit = 20, ...filters } = params;
-    return api.get('/technicians/balances', { 
-      params: { page, limit, ...filters } 
+    return api.get('/technicians/balances', {
+      params: { page, limit, ...filters }
     });
   },
 
@@ -51,33 +51,30 @@ const paymentApi = {
    * Get all payments with advanced filtering
    */
   getPayments: (params = {}) => {
-    const { 
-      page = 1, 
-      limit = 10, 
-      sortBy = 'collectedAt', 
+    const {
+      page = 1,
+      limit = 10,
+      sortBy = 'collectedAt',
       sortOrder = 'desc',
-      ...filters 
+      ...filters
     } = params;
-    
-    return api.get('/payments', { 
-      params: { page, limit, sortBy, sortOrder, ...filters } 
+
+    return api.get('/payments', {
+      params: { page, limit, sortBy, sortOrder, ...filters }
     });
   },
 
   /**
    * Get detailed information for a specific payment
    */
-  getPaymentDetails: (paymentId) => 
+  getPaymentDetails: (paymentId) =>
     api.get(`/${paymentId}`),
 
   /**
    * Generate comprehensive payment reports
    */
   generatePaymentReport: (params = {}) => {
-    const { groupBy = 'day', ...dateParams } = params;
-    return api.get('/payments/reports/analytics', { 
-      params: { groupBy, ...dateParams } 
-    });
+    return api.get('/summary', { params });
   },
 
   /**
@@ -91,13 +88,13 @@ const paymentApi = {
   ],
 
   exportPayments: ({ startDate, endDate }) =>
-  api.get('/export', {
-    params: {
-      startDate,
-      endDate
-    },
-    responseType: "blob"
-  }),
+    api.get('/export', {
+      params: {
+        startDate,
+        endDate
+      },
+      responseType: "blob"
+    }),
 };
 
 export default paymentApi;
