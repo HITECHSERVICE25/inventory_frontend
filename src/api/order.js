@@ -29,28 +29,28 @@ export default {
   rejectDiscount: (id) => api.patch(`/${id}/reject-discount`),
 
 
-// Get Draft Orders with pagination
-getDraftOrders: ({ 
-  page = 1, 
-  limit = 10,
-  search 
-} = {}) => api.get('/drafts', {
-  params: {
-    page,
-    limit,
-    search
-  }
-}),
-
-// Export Orders by Date Range (for Excel)
-exportOrders: ({ startDate, endDate }) =>
-  api.get('/export', {
+  // Get Draft Orders with pagination
+  getDraftOrders: ({
+    page = 1,
+    limit = 10,
+    search: searchQuery
+  } = {}) => api.get('/drafts', {
     params: {
-      startDate,
-      endDate
-    },
-    responseType: "blob"
+      page,
+      limit,
+      search: searchQuery
+    }
   }),
+
+  // Export Orders by Date Range (for Excel)
+  exportOrders: ({ startDate, endDate }) =>
+    api.get('/export', {
+      params: {
+        startDate,
+        endDate
+      },
+      responseType: "blob"
+    }),
 
 
   // Get Single Order
@@ -58,7 +58,7 @@ exportOrders: ({ startDate, endDate }) =>
 
   // Update Order (for draft modifications)
   updateOrder: (id, data) => api.put(`/${id}`, data),
-  
+
   // Optional: Delete Draft Order
   deleteDraft: (id) => api.delete(`/${id}`)
 };

@@ -25,21 +25,23 @@ const InstallationPage = () => {
     amount: ''
   });
   const [error, setError] = useState('');
+  const [formLoading, setFormLoading] = useState(false);
 
   // Fetch installation charge history
-  useEffect(() => {
-    const fetchCharges = async () => {
-      try {
-        const res = await installationApi.getInstallationChargeHistory();
-        setCharges(res.data.data.map((charge, i) => ({ ...charge, sl_no: i + 1, id: charge._id })));
-      } catch (err) {
-        console.log(err);
-        setError('Failed to load installation charges');
-      } finally {
-        setLoading(false);
-      }
-    };
+  const fetchCharges = async () => {
+    try {
+      setLoading(true);
+      const res = await installationApi.getInstallationChargeHistory();
+      setCharges(res.data.data.map((charge, i) => ({ ...charge, sl_no: i + 1, id: charge._id })));
+    } catch (err) {
+      console.log(err);
+      setError('Failed to load installation charges');
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchCharges();
   }, []);
 
@@ -57,13 +59,12 @@ const InstallationPage = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setFormLoading(true);
+    setError('');
     try {
       await installationApi.createInstallationCharge(formData);
       handleCloseModal();
-
-      // Refresh charges list
-      const res = await installationApi.getInstallationChargeHistory();
-      setCharges(res.data.data.map((charge, i) => ({ ...charge, sl_no: i + 1, id: charge._id })));
+      fetchCharges();
     } catch (err) {
       console.log(err);
       setError(
@@ -71,6 +72,8 @@ const InstallationPage = () => {
         err.response?.data?.error?.details[0]?.message ||
         'Failed to create installation charge'
       );
+    } finally {
+      setFormLoading(false);
     }
   };
 
@@ -129,6 +132,12 @@ const InstallationPage = () => {
           }}
         >
           <form onSubmit={handleSubmit}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <Typography variant="h6">Add Installation Charge</Typography>
+              <IconButton onClick={handleCloseModal} size="small">
+                <CloseIcon />
+              </IconButton>
+            </Box>
             <TextField
               label="Amount"
               name="amount"
@@ -137,13 +146,19 @@ const InstallationPage = () => {
               onChange={handleChange}
               fullWidth
               required
-              inputProps={{ min: 0 }} // Ensure positive number [[3]]
+              inputProps={{ min: 0 }}
               sx={{ mb: 2 }}
             />
 
-            {error && <div style={{ color: 'red' }}>{error}</div>}
-            <Button type="submit" variant="contained" fullWidth>
-              Create Charge
+            {error && <Typography color="error" sx={{ mb: 2 }}>{error}</Typography>}
+            <Button
+              type="submit"
+              variant="contained"
+              fullWidth
+              disabled={formLoading}
+              startIcon={formLoading ? <CircularProgress size={20} color="inherit" /> : null}
+            >
+              {formLoading ? "Creating..." : "Create Charge"}
             </Button>
           </form>
         </Box>

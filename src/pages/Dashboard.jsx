@@ -16,18 +16,24 @@ const currency = (val) =>
   `₹ ${Number(val || 0).toLocaleString("en-IN")}`;
 
 export default function Dashboard() {
-  const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState(null);
+  const [data, setData] = useState(null);
 
-  const fetchDashboard = async () => {
+  const fetchDashboard = async (isRefresh = false) => {
     try {
-      setLoading(true);
+      if (isRefresh) setRefreshing(true);
+      else setLoading(true);
+      setError(null);
       const res = await dashboardApi.getDashboard();
       setData(res.data.data);
     } catch (err) {
       console.error("Dashboard error:", err);
+      setError("Failed to load dashboard data. Please try again.");
     } finally {
-      setLoading(false);
+      if (isRefresh) setRefreshing(false);
+      else setLoading(false);
     }
   };
 
@@ -37,8 +43,17 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <Box display="flex" justifyContent="center" mt={6}>
+      <Box display="flex" justifyContent="center" alignItems="center" height="80vh">
         <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (error && !data) {
+    return (
+      <Box p={4} textAlign="center">
+        <Typography color="error" gutterBottom>{error}</Typography>
+        <Button variant="contained" onClick={() => fetchDashboard()}>Retry</Button>
       </Box>
     );
   }
@@ -52,13 +67,28 @@ export default function Dashboard() {
   return (
     <Box p={4}>
       {/* Header */}
-      <Box display="flex" justifyContent="space-between" mb={4}>
+      <Box
+        display="flex"
+        justifyContent="space-between"
+        alignItems={{ xs: 'flex-start', sm: 'center' }}
+        flexDirection={{ xs: 'column', sm: 'row' }}
+        gap={2}
+        mb={4}
+      >
         <Typography variant="h4" fontWeight={600}>
           Dashboard Overview
         </Typography>
-        <Button variant="contained" onClick={fetchDashboard}>
-          Refresh
-        </Button>
+        <Box display="flex" alignItems="center" gap={2}>
+          {error && <Typography color="error" variant="body2">{error}</Typography>}
+          <Button
+            variant="contained"
+            onClick={() => fetchDashboard(true)}
+            disabled={refreshing}
+            startIcon={refreshing ? <CircularProgress size={20} color="inherit" /> : null}
+          >
+            {refreshing ? "Refreshing..." : "Refresh"}
+          </Button>
+        </Box>
       </Box>
 
       {/* KPI CARDS */}

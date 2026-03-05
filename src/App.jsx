@@ -30,20 +30,20 @@ function App() {
           {/* Public routes */}
 
 
-           <Route
-        path="/login"
-        element={
-          <PublicRoute>
-            <Login />
-          </PublicRoute>
-        }
-      />
+          <Route
+            path="/login"
+            element={
+              <PublicRoute>
+                <Login />
+              </PublicRoute>
+            }
+          />
 
           {/* <Route path="/login" element={<Login />} /> */}
           {/* <Route path="/register" element={<Register />} /> */}
           {/* <Route path="/forgot-password" element={<ForgotPassword />} /> */}
           {/* <Route path="/reset-password/:token" element={<ResetPassword />} /> */}
-          
+
           {/* Protected routes with layout */}
           <Route element={<ProtectedRoute />}>
             <Route element={<Layout />}>
@@ -55,14 +55,14 @@ function App() {
               <Route path="/technicians" element={<TechnicianList />} />
               <Route path="/inventory" element={<InventoryList />} />
               <Route path="/commission" element={<CommissionList />} />
-              <Route path="/order" element={<OrderList />} />\
+              <Route path="/order" element={<OrderList />} />
               <Route path="/payment" element={<PaymentList />} />
 
 
               {/* Add other protected routes here */}
             </Route>
           </Route>
-          
+
           <Route path="*" element={<Login />} />
         </Routes>
       </BrowserRouter>

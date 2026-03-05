@@ -8,7 +8,12 @@ import {
   Tooltip,
   IconButton,
   Grid,
-  Typography
+  Typography,
+  Paper,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions
 } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -16,6 +21,9 @@ import EditIcon from '@mui/icons-material/Edit';
 import CloseIcon from '@mui/icons-material/Close';
 import { useAuth } from '../../context/AuthContext';
 import productApi from '../../api/product';
+
+import SearchIcon from '@mui/icons-material/Search';
+import InputAdornment from '@mui/material/InputAdornment';
 
 const ProductList = () => {
   const { user } = useAuth();
@@ -37,25 +45,43 @@ const ProductList = () => {
     totalCount: 0,
     unitOfMeasure: '' // Added unitOfMeasure field
   });
+  const [formLoading, setFormLoading] = useState(false);
+
+  const [searchTerm, setSearchTerm] = useState('');
+  const [activeSearchTerm, setActiveSearchTerm] = useState('');
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const params = {
+        page: paginationModel.page + 1,
+        limit: paginationModel.pageSize,
+        search: activeSearchTerm
+      };
+      const res = await productApi.getProducts(params);
+      setProducts((res.data.data || []).map(p => ({ ...p, id: p._id })));
+      setTotalRows(res.data.pagination?.total || 0);
+    } catch (err) {
+      setError('Failed to load products');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const params = {
-          page: paginationModel.page + 1,
-          limit: paginationModel.pageSize
-        };
-        const res = await productApi.getProducts(params);
-        setProducts(res.data.data.map(p => ({ ...p, id: p._id })));
-        setTotalRows(res.data.pagination.total);
-      } catch (err) {
-        setError('Failed to load products');
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchData();
-  }, [paginationModel]);
+  }, [paginationModel, activeSearchTerm]);
+
+  const handleSearch = () => {
+    setActiveSearchTerm(searchTerm);
+    setPaginationModel(prev => ({ ...prev, page: 0 }));
+  };
+
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      handleSearch();
+    }
+  };
 
   const handleCreateOpen = () => {
     setFormData({ name: '', price: 0, totalCount: 0, unitOfMeasure: '' });
@@ -113,90 +139,83 @@ const ProductList = () => {
   };
 
   // Create a new product
-const handleCreate = async (e) => {
-  try {
-
+  const handleCreate = async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
-
-    await productApi.createProduct(formData);
-    handleClose();
-
-    // Refresh data
-    const res = await productApi.getProducts({
-      page: paginationModel.page + 1,
-      limit: paginationModel.pageSize,
-    });
-    setProducts(res.data.data.map((p) => ({ ...p, id: p._id })));
-  } catch (err) {
-    const serverErrors = err.response?.data?.error?.details || {};
-    const formattedErrors = {};
-    Object.keys(serverErrors).forEach((field) => {
-      formattedErrors[field] = serverErrors[field].message;
-    });
-    setFormErrors(formattedErrors);
-    setError(err.response?.data?.message || 'Failed to create product');
-  }
-};
-
-// Update an existing product
-const handleUpdate = async (e) => {
-  try {
-
-    e.preventDefault();
-    if (!validateForm()) return;
-
-    if (!selectedProduct) {
-      throw new Error('No product selected for update');
+    setFormLoading(true);
+    setError('');
+    try {
+      await productApi.createProduct(formData);
+      handleClose();
+      fetchData();
+    } catch (err) {
+      const serverErrors = err.response?.data?.error?.details || {};
+      const formattedErrors = {};
+      Object.keys(serverErrors).forEach((field) => {
+        formattedErrors[field] = serverErrors[field].message;
+      });
+      setFormErrors(formattedErrors);
+      setError(err.response?.data?.message || 'Failed to create product');
+    } finally {
+      setFormLoading(false);
     }
+  };
 
-    await productApi.updateProduct(selectedProduct._id, formData);
-    handleClose();
+  // Update an existing product
+  const handleUpdate = async (e) => {
+    e.preventDefault();
+    if (!validateForm()) return;
+    if (!selectedProduct) return;
+    setFormLoading(true);
+    setError('');
+    try {
+      await productApi.updateProduct(selectedProduct._id, formData);
+      handleClose();
+      fetchData();
+    } catch (err) {
+      const serverErrors = err.response?.data?.error?.details || {};
+      const formattedErrors = {};
+      Object.keys(serverErrors).forEach((field) => {
+        formattedErrors[field] = serverErrors[field].message;
+      });
+      setFormErrors(formattedErrors);
+      setError(err.response?.data?.message || 'Failed to update product');
+    } finally {
+      setFormLoading(false);
+    }
+  };
 
-    // Refresh data
-    const res = await productApi.getProducts({
-      page: paginationModel.page + 1,
-      limit: paginationModel.pageSize,
-    });
-    setProducts(res.data.data.map((p) => ({ ...p, id: p._id })));
-  } catch (err) {
-    const serverErrors = err.response?.data?.error?.details || {};
-    const formattedErrors = {};
-    Object.keys(serverErrors).forEach((field) => {
-      formattedErrors[field] = serverErrors[field].message;
-    });
-    setFormErrors(formattedErrors);
-    setError(err.response?.data?.message || 'Failed to update product');
-  }
-};
+    const [deleteId, setDeleteId] = useState(null);
+  
 
   const handleDelete = async (id) => {
-    if (window.confirm('Are you sure you want to delete this product?')) {
+    
       try {
         await productApi.deleteProduct(id);
-        setProducts(products.filter(p => p.id !== id));
+        setDeleteId(null);
+        fetchData();
       } catch (err) {
         setError('Failed to delete product');
       }
-    }
+    
   };
 
   const columns = [
     { field: 'name', headerName: 'Product Name', width: 200 },
     { field: 'unitOfMeasure', headerName: 'Unit', width: 150 }, // Added unitOfMeasure
-    { 
-      field: 'price', 
-      headerName: 'Price', 
+    {
+      field: 'price',
+      headerName: 'Price',
       width: 150,
-      valueFormatter: (params) => `₹${params.toFixed(2)}`
+      valueFormatter: (value) => `₹${Number(value ?? 0).toFixed(2)}`
     },
     { field: 'totalCount', headerName: 'Total', width: 150 },
     { field: 'allocatedCount', headerName: 'Allocated', width: 150 },
-    { 
-      field: 'availableCount', 
-      headerName: 'Available', 
+    {
+      field: 'availableCount',
+      headerName: 'Available',
       width: 150,
-      renderCell: (params) => params.row.totalCount - params.row.allocatedCount
+      renderCell: (params) => (params.row.totalCount || 0) - (params.row.allocatedCount || 0)
     },
     {
       field: 'actions',
@@ -211,7 +230,11 @@ const handleUpdate = async (e) => {
           </Tooltip>
           <Tooltip title="Delete">
             <IconButton
-              onClick={() => handleDelete(params.row.id)}
+              onClick={(e) => {
+                e.stopPropagation();
+  setDeleteId(params.row.id);
+                
+              }}
               color="error"
             >
               <DeleteIcon />
@@ -282,31 +305,57 @@ const handleUpdate = async (e) => {
   if (loading) return <CircularProgress />;
 
   return (
-    <Box sx={{ height: 600, width: '100%' }}>
-<Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-  <Typography variant="h5">Products</Typography>
-  <Button variant="contained" onClick={handleCreateOpen}>
-    Add Product
-  </Button>
-</Box>
+    <Box sx={{ height: 'calc(100vh - 200px)', width: '100%', display: 'flex', flexDirection: 'column' }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 2 }}>
+        <Typography variant="h5">Products</Typography>
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+          <TextField
+            size="small"
+            placeholder="Search products..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            onKeyDown={handleKeyPress}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon />
+                </InputAdornment>
+              ),
+            }}
+          />
+          <Button variant="outlined" onClick={handleSearch}>
+            Search
+          </Button>
+          <Button variant="contained" onClick={handleCreateOpen}>
+            Add Product
+          </Button>
+        </Box>
+      </Box>
 
-    <div>
-      <DataGrid
-        rows={products}
-        columns={columns}
-        rowCount={totalRows}
-        paginationMode="server"
-        paginationModel={paginationModel}
-        onPaginationModelChange={setPaginationModel}
-        pageSizeOptions={[5, 10, 25]}
-        loading={loading}
-        initialState={{
-          pagination: {
-            paginationModel: { page: 0, pageSize: 5 },
-          },
-        }}
-      />
-  </div>
+      <Paper sx={{ flexGrow: 1, width: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+        <DataGrid
+          rows={products}
+          columns={columns}
+          rowCount={totalRows}
+          paginationMode="server"
+          paginationModel={paginationModel}
+          onPaginationModelChange={setPaginationModel}
+          pageSizeOptions={[5, 10, 25]}
+          loading={loading}
+          disableSelectionOnClick
+          autoHeight={false}
+          sx={{
+            flexGrow: 1,
+            '& .MuiDataGrid-footerContainer': {
+              position: 'sticky',
+              bottom: 0,
+              backgroundColor: 'white',
+              zIndex: 1,
+            },
+            border: 'none',
+          }}
+        />
+      </Paper>
       {/* Create Modal */}
       <Modal
         open={openCreateModal}
@@ -315,7 +364,7 @@ const handleUpdate = async (e) => {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          overflow: 'hidden'
+          overflow: 'auto'
         }}
       >
         <Box
@@ -346,9 +395,16 @@ const handleUpdate = async (e) => {
           </IconButton>
           <form onSubmit={handleCreate}>
             {renderFormFields()}
-            {error && <div style={{ color: 'red', mt: 2 }}>{error}</div>}
-            <Button type="submit" variant="contained" fullWidth sx={{ mt: 3 }}>
-              Create Product
+            {error && <Typography color="error" sx={{ mt: 2 }}>{error}</Typography>}
+            <Button
+              type="submit"
+              variant="contained"
+              fullWidth
+              sx={{ mt: 3 }}
+              disabled={formLoading}
+              startIcon={formLoading ? <CircularProgress size={20} color="inherit" /> : null}
+            >
+              {formLoading ? "Creating..." : "Create Product"}
             </Button>
           </form>
         </Box>
@@ -361,7 +417,7 @@ const handleUpdate = async (e) => {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          overflow: 'hidden'
+          overflow: 'auto'
         }}
       >
         <Box
@@ -392,13 +448,35 @@ const handleUpdate = async (e) => {
           </IconButton>
           <form onSubmit={handleUpdate}>
             {renderFormFields()}
-            {error && <div style={{ color: 'red', mt: 2 }}>{error}</div>}
-            <Button type="submit" variant="contained" fullWidth sx={{ mt: 3 }}>
-              Update Product
+            {error && <Typography color="error" sx={{ mt: 2 }}>{error}</Typography>}
+            <Button
+              type="submit"
+              variant="contained"
+              fullWidth
+              sx={{ mt: 3 }}
+              disabled={formLoading}
+              startIcon={formLoading ? <CircularProgress size={20} color="inherit" /> : null}
+            >
+              {formLoading ? "Updating..." : "Update Product"}
             </Button>
           </form>
         </Box>
       </Modal>
+      <Dialog open={!!deleteId} onClose={() => setDeleteId(null)}>
+  <DialogTitle>Delete Product</DialogTitle>
+  <DialogContent>
+    Are you sure you want to delete this product?
+  </DialogContent>
+  <DialogActions>
+    <Button onClick={() => setDeleteId(null)}>Cancel</Button>
+    <Button
+      color="error"
+      onClick={() => handleDelete(deleteId)}
+    >
+      Delete
+    </Button>
+  </DialogActions>
+</Dialog>
     </Box>
   );
 };

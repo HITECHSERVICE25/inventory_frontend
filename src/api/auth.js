@@ -19,6 +19,6 @@ export default {
   getMe: () => api.get('/me'),
   forgotPassword: email => api.post('/forgotpassword', { email }),
   resetPassword: (token, password) => api.put(`/resetpassword/${token}`, { password }),
-  getUsers: () => api.get('/users'),
+  getUsers: (params) => api.get('/users', { params }),
   updateUser: (userId, userData) => api.put(`/users/${userId}`, userData),
 };

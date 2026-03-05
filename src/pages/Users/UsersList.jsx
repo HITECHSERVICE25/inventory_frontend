@@ -1,14 +1,14 @@
 import { useState, useEffect } from 'react';
-import { 
-  Box, 
-  Button, 
-  CircularProgress, 
-  Modal, 
-  TextField, 
-  FormControl, 
-  InputLabel, 
-  Select, 
-  MenuItem, 
+import {
+  Box,
+  Button,
+  CircularProgress,
+  Modal,
+  TextField,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
   Typography,
   Dialog,
   DialogTitle,
@@ -28,13 +28,25 @@ import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
 
 
+import SearchIcon from '@mui/icons-material/Search';
+import Paper from '@mui/material/Paper';
+
 const UsersList = () => {
   const { user } = useAuth();
   const [users, setUsers] = useState([]);
+  const [totalRows, setTotalRows] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [paginationModel, setPaginationModel] = useState({
+    page: 0,
+    pageSize: 5
+  });
+
+  const [searchTerm, setSearchTerm] = useState('');
+  const [activeSearchTerm, setActiveSearchTerm] = useState('');
+
   const [openModal, setOpenModal] = useState(false);
-   const [openEditModal, setOpenEditModal] = useState(false);
-     const [selectedUser, setSelectedUser] = useState(null);
+  const [openEditModal, setOpenEditModal] = useState(false);
+  const [selectedUser, setSelectedUser] = useState(null);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -46,37 +58,58 @@ const UsersList = () => {
 
   const [showPassword, setShowPassword] = useState(false);
 
-const handleTogglePassword = () => {
-  setShowPassword((prev) => !prev);
-};
+  const handleTogglePassword = () => {
+    setShowPassword((prev) => !prev);
+  };
 
+  const [formLoading, setFormLoading] = useState(false);
 
-      const fetchUsers = async () => {
-      try {
-        const res = await api.getUsers();
-        setUsers(res.data.data.map((el, i) => ({...el, sl_no: i + 1, id: el._id})));
-      } catch (err) {
-        console.log(err);
-        setError('Failed to load users');
-      } finally {
-        setLoading(false);
-      }
-    };
+  const fetchUsers = async () => {
+    try {
+      setLoading(true);
+      const params = {
+        page: paginationModel.page + 1,
+        limit: paginationModel.pageSize,
+        search: activeSearchTerm
+      };
+      const res = await api.getUsers(params);
+      setUsers(res.data.data.map((el, i) => ({
+        ...el,
+        sl_no: (paginationModel.page * paginationModel.pageSize) + i + 1,
+        id: el._id
+      })));
+      setTotalRows(res.data.pagination.total);
+    } catch (err) {
+      console.log(err);
+      setError('Failed to load users');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-
-    
     fetchUsers();
-  }, []);
+  }, [paginationModel, activeSearchTerm]);
+
+  const handleSearch = () => {
+    setActiveSearchTerm(searchTerm);
+    setPaginationModel(prev => ({ ...prev, page: 0 }));
+  };
+
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      handleSearch();
+    }
+  };
 
   const handleOpenModal = () => {
     setFormData(
       {
-    name: '',
-    email: '',
-    password: '',
-    role: 'user'
-  }
+        name: '',
+        email: '',
+        password: '',
+        role: 'user'
+      }
     )
     setOpenModal(true)
   };
@@ -91,24 +124,25 @@ const handleTogglePassword = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setFormLoading(true);
+    setError('');
     try {
       await api.register(formData);
       handleCloseModal();
-      // Refresh user list
-      const res = await api.getUsers();
-      setUsers(res.data.data.map((el, i) => ({...el, sl_no: i + 1, id: el._id})));
+      fetchUsers();
     } catch (err) {
-  const apiError = err.response?.data?.error;
+      const apiError = err.response?.data?.error;
 
-  if (apiError?.details?.length > 0) {
-    // Show first validation error
-    setError(apiError.details[0].message);
-  } else if (apiError?.message) {
-    setError(apiError.message);
-  } else {
-    setError("Failed to update user");
-  }
-}
+      if (apiError?.details?.length > 0) {
+        setError(apiError.details[0].message);
+      } else if (apiError?.message) {
+        setError(apiError.message);
+      } else {
+        setError("Failed to create user");
+      }
+    } finally {
+      setFormLoading(false);
+    }
 
   };
 
@@ -134,6 +168,9 @@ const handleTogglePassword = () => {
 
   const handleEditSubmit = async (e) => {
     e.preventDefault();
+    setFormLoading(true);
+    setError('');
+    setSuccess('');
     try {
       // Remove password if empty (don't update password unless specified)
       const updateData = { ...formData };
@@ -148,82 +185,117 @@ const handleTogglePassword = () => {
         fetchUsers();
       }, 1000);
     } catch (err) {
-  const apiError = err.response?.data?.error;
+      const apiError = err.response?.data?.error;
 
-  if (apiError?.details?.length > 0) {
-    // Show first validation error
-    setError(apiError.details[0].message);
-  } else if (apiError?.message) {
-    setError(apiError.message);
-  } else {
-    setError("Failed to update user");
-  }
-}
+      if (apiError?.details?.length > 0) {
+        setError(apiError.details[0].message);
+      } else if (apiError?.message) {
+        setError(apiError.message);
+      } else {
+        setError("Failed to update user");
+      }
+    } finally {
+      setFormLoading(false);
+    }
 
   };
 
   if (loading) return <CircularProgress />;
 
   return (
-    <Box sx={{ height: 400, width: '100%' }}>
+    <Box sx={{ height: 'calc(100vh - 200px)', width: '100%', display: 'flex', flexDirection: 'column' }}>
 
-
-<Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-              <Typography variant="h5">Users</Typography>
-              {user.role == "admin" && <Button variant="contained" onClick={handleOpenModal}>
-    Add User
-  </Button>}
-            </Box>
-
-      <DataGrid
-        rows={users}
-        columns={[
-          { field: 'sl_no', headerName: 'Sl No.', width: 100 },
-          { field: 'name', headerName: 'Name', width: 150 },
-          { field: 'email', headerName: 'Email', width: 250 },
-          { field: 'role', headerName: 'Role', width: 150 },
-          { field: 'createdAt', headerName: 'Date', width: 200, valueFormatter: (params) => new Date(params).toLocaleDateString() },
-        user.role == "admin" && {
-      field: 'actions',
-      headerName: 'Actions',
-      width: 200,
-      renderCell: (params) => (
-        <Box>
-          <IconButton 
-            color="primary" 
-            onClick={() => handleOpenEditModal(params.row, params)}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 2 }}>
+        <Typography variant="h5">Users</Typography>
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+          <TextField
             size="small"
-          >
-            <Edit />
-          </IconButton>
-          
+            placeholder="Search users..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            onKeyDown={handleKeyPress}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon />
+                </InputAdornment>
+              ),
+            }}
+          />
+          <Button variant="outlined" onClick={handleSearch}>
+            Search
+          </Button>
+          {user.role == "admin" && (
+            <Button variant="contained" onClick={handleOpenModal}>
+              Add User
+            </Button>
+          )}
         </Box>
-      ),
-    }
-        ]}
-        initialState={{
-          pagination: {
-            paginationModel: { page: 0, pageSize: 5 },
-          },
-        }}
-        pageSizeOptions={[5, 10]}
-      />
+      </Box>
+
+      <Paper sx={{ flexGrow: 1, width: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+        <DataGrid
+          rows={users}
+          columns={[
+            { field: 'sl_no', headerName: 'Sl No.', width: 100 },
+            { field: 'name', headerName: 'Name', width: 150 },
+            { field: 'email', headerName: 'Email', width: 250 },
+            { field: 'role', headerName: 'Role', width: 150 },
+            { field: 'createdAt', headerName: 'Date', width: 200, valueFormatter: (params) => new Date(params).toLocaleDateString() },
+            user.role == "admin" && {
+              field: 'actions',
+              headerName: 'Actions',
+              width: 100,
+              renderCell: (params) => (
+                <Box>
+                  <IconButton
+                    color="primary"
+                    onClick={() => handleOpenEditModal(params.row, params)}
+                    size="small"
+                  >
+                    <Edit />
+                  </IconButton>
+                </Box>
+              ),
+            }
+          ]}
+          rowCount={totalRows}
+          paginationMode="server"
+          paginationModel={paginationModel}
+          onPaginationModelChange={setPaginationModel}
+          pageSizeOptions={[5, 10, 25]}
+          loading={loading}
+          disableSelectionOnClick
+          autoHeight={false}
+          sx={{
+            flexGrow: 1,
+            '& .MuiDataGrid-footerContainer': {
+              position: 'sticky',
+              bottom: 0,
+              backgroundColor: 'white',
+              zIndex: 1,
+            },
+            border: 'none',
+          }}
+        />
+      </Paper>
 
       {/* Add User Modal */}
       <Modal
         open={openModal}
         onClose={handleCloseModal}
         aria-labelledby="add-user-modal"
+        sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'auto' }}
       >
         <Box sx={{
-          position: 'absolute',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-          width: 400,
+          width: { xs: '95%', md: 400 },
+          maxHeight: '90vh',
+          overflowY: 'auto',
           bgcolor: 'background.paper',
           boxShadow: 24,
           p: 4,
+          borderRadius: 2,
+          position: 'relative'
         }}>
           {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
@@ -248,28 +320,28 @@ const handleTogglePassword = () => {
               sx={{ mb: 2 }}
             />
             <TextField
-  label="Password"
-  name="password"
-  type={showPassword ? "text" : "password"}
-  value={formData.password}
-  onChange={handleChange}
-  fullWidth
-  required
-  sx={{ mb: 2 }}
-  InputProps={{
-    endAdornment: (
-      <InputAdornment position="end">
-        <IconButton
-          onClick={handleTogglePassword}
-          edge="end"
-          tabIndex={-1}
-        >
-          {showPassword ? <VisibilityOff /> : <Visibility />}
-        </IconButton>
-      </InputAdornment>
-    ),
-  }}
-/>
+              label="Password"
+              name="password"
+              type={showPassword ? "text" : "password"}
+              value={formData.password}
+              onChange={handleChange}
+              fullWidth
+              required
+              sx={{ mb: 2 }}
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      onClick={handleTogglePassword}
+                      edge="end"
+                      tabIndex={-1}
+                    >
+                      {showPassword ? <VisibilityOff /> : <Visibility />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
+            />
 
             <FormControl fullWidth sx={{ mb: 2 }}>
               <InputLabel>Role</InputLabel>
@@ -284,8 +356,14 @@ const handleTogglePassword = () => {
                 <MenuItem value="admin">Admin</MenuItem>
               </Select>
             </FormControl>
-            <Button type="submit" variant="contained" fullWidth>
-              Create User
+            <Button
+              type="submit"
+              variant="contained"
+              fullWidth
+              disabled={formLoading}
+              startIcon={formLoading ? <CircularProgress size={20} color="inherit" /> : null}
+            >
+              {formLoading ? "Creating..." : "Create User"}
             </Button>
           </form>
         </Box>
@@ -295,7 +373,7 @@ const handleTogglePassword = () => {
         <DialogTitle>Edit User</DialogTitle>
         <DialogContent>
           {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-            {success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}
+          {success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}
           <form onSubmit={handleEditSubmit}>
             <TextField
               label="Name"
@@ -317,28 +395,28 @@ const handleTogglePassword = () => {
               sx={{ mb: 2 }}
             />
             <TextField
-  label="New Password (leave blank to keep current)"
-  name="password"
-  type={showPassword ? "text" : "password"}
-  value={formData.password}
-  onChange={handleChange}
-  fullWidth
-  sx={{ mb: 2 }}
-  helperText="Leave empty if you don't want to change the password"
-  InputProps={{
-    endAdornment: (
-      <InputAdornment position="end">
-        <IconButton
-          onClick={handleTogglePassword}
-          edge="end"
-          tabIndex={-1}
-        >
-          {showPassword ? <VisibilityOff /> : <Visibility />}
-        </IconButton>
-      </InputAdornment>
-    ),
-  }}
-/>
+              label="New Password (leave blank to keep current)"
+              name="password"
+              type={showPassword ? "text" : "password"}
+              value={formData.password}
+              onChange={handleChange}
+              fullWidth
+              sx={{ mb: 2 }}
+              helperText="Leave empty if you don't want to change the password"
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      onClick={handleTogglePassword}
+                      edge="end"
+                      tabIndex={-1}
+                    >
+                      {showPassword ? <VisibilityOff /> : <Visibility />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
+            />
 
             <FormControl fullWidth sx={{ mb: 2 }}>
               <InputLabel>Role</InputLabel>
@@ -353,12 +431,19 @@ const handleTogglePassword = () => {
                 <MenuItem value="admin">Admin</MenuItem>
               </Select>
             </FormControl>
-            
+
           </form>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseEditModal} startIcon={<Cancel />}>Cancel</Button>
-          <Button onClick={handleEditSubmit} variant="contained" startIcon={<Save />}>Save Changes</Button>
+          <Button onClick={handleCloseEditModal} startIcon={<Cancel />} disabled={formLoading}>Cancel</Button>
+          <Button
+            onClick={handleEditSubmit}
+            variant="contained"
+            startIcon={formLoading ? <CircularProgress size={20} color="inherit" /> : <Save />}
+            disabled={formLoading}
+          >
+            {formLoading ? "Saving..." : "Save Changes"}
+          </Button>
         </DialogActions>
       </Dialog>
     </Box>
