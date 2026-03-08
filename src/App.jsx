@@ -13,7 +13,6 @@ import CompanyList from './pages/Companies/CompanyList';
 import TechnicianList from './pages/Technicians/TechnicianList';
 import ProductList from './pages/Products/ProductList';
 import InventoryList from './pages/Inventory/InventoryList';
-import InstallationPage from './pages/Installation/InstallationPage';
 import CommissionList from './pages/Commission/CommisionList';
 import OrderList from './pages/Order/OrderList';
 import PaymentList from './pages/Payment/PaymentList';

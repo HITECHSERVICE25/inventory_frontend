@@ -16,7 +16,11 @@ import {
     FormHelperText,
     InputAdornment,
     Autocomplete,
-    CircularProgress as MuiCircularProgress
+    CircularProgress as MuiCircularProgress,
+    Card,
+    CardContent,
+    useMediaQuery,
+    useTheme
 } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -40,6 +44,9 @@ const CommissionList = () => {
         page: 0,
         pageSize: 5
     });
+
+    const theme = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
     const [searchTerm, setSearchTerm] = useState('');
     const [activeSearchTerm, setActiveSearchTerm] = useState('');
 
@@ -433,34 +440,60 @@ const CommissionList = () => {
             </Box>
 
             <Paper sx={{ flexGrow: 1, width: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                <DataGrid
-                    rows={commissions}
-                    columns={columns}
-                    rowCount={totalRows}
-                    paginationMode="server"
-                    paginationModel={paginationModel}
-                    onPaginationModelChange={setPaginationModel}
-                    pageSizeOptions={[5, 10, 25]}
-                    loading={loading}
-                    disableSelectionOnClick
-                    autoHeight={false}
-                    sx={{
-                        flexGrow: 1,
-                        '& .MuiDataGrid-footerContainer': {
-                            position: 'sticky',
-                            bottom: 0,
-                            backgroundColor: 'white',
-                            zIndex: 1,
-                        },
-                        border: 'none',
-                    }}
-                />
+                {isMobile ? (
+                    <Box sx={{ overflowY: 'auto', p: 1 }}>
+                        {commissions.map((c) => (
+                            <Card key={c.id} sx={{ mb: 2 }}>
+                                <CardContent>
+                                    <Typography variant="subtitle1" fontWeight="bold">{c.productName}</Typography>
+                                    <Typography variant="body2" color="textSecondary">Technician: {c.technicianName}</Typography>
+                                    <Typography variant="body2" color="primary" fontWeight="bold">Amount: ₹{c.amount}</Typography>
+                                    <Typography variant="caption" color="textSecondary">Date: {c.createdAt ? new Date(c.createdAt).toLocaleDateString() : 'N/A'}</Typography>
+                                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
+                                        <IconButton onClick={() => handleEditOpen(c)} color="primary" size="small">
+                                            <EditIcon />
+                                        </IconButton>
+                                        <IconButton onClick={() => handleDelete(c.id)} color="error" size="small">
+                                            <DeleteIcon />
+                                        </IconButton>
+                                    </Box>
+                                </CardContent>
+                            </Card>
+                        ))}
+                        {commissions.length === 0 && !loading && (
+                            <Typography align="center" sx={{ mt: 4 }}>No commissions found</Typography>
+                        )}
+                    </Box>
+                ) : (
+                    <DataGrid
+                        rows={commissions}
+                        columns={columns}
+                        rowCount={totalRows}
+                        paginationMode="server"
+                        paginationModel={paginationModel}
+                        onPaginationModelChange={setPaginationModel}
+                        pageSizeOptions={[5, 10, 25]}
+                        loading={loading}
+                        disableSelectionOnClick
+                        autoHeight={false}
+                        sx={{
+                            flexGrow: 1,
+                            '& .MuiDataGrid-footerContainer': {
+                                position: 'sticky',
+                                bottom: 0,
+                                backgroundColor: 'white',
+                                zIndex: 1,
+                            },
+                            border: 'none',
+                        }}
+                    />
+                )}
             </Paper>
 
             <Modal
                 open={openCreateModal}
                 onClose={handleClose}
-        disableScrollLock 
+                disableScrollLock
 
                 sx={{
                     display: 'flex',

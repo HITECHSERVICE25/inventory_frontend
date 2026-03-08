@@ -10,6 +10,9 @@ import {
   Divider,
   Chip,
 } from "@mui/material";
+import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import PendingActionsIcon from "@mui/icons-material/PendingActions";
 import dashboardApi from "../api/dashboard";
 
 const currency = (val) =>
@@ -92,7 +95,7 @@ export default function Dashboard() {
       </Box>
 
       {/* KPI CARDS */}
-      <Grid container spacing={3} mb={4}>
+      {/* <Grid container spacing={3} mb={4}>
         {[
           { label: "Total Orders", value: kpis.totalOrders },
           { label: "Completed Orders", value: kpis.completedOrders },
@@ -113,7 +116,92 @@ export default function Dashboard() {
             </Card>
           </Grid>
         ))}
-      </Grid>
+      </Grid> */}
+
+      <Grid container spacing={3} sx={{ mb: 4 }}>
+  {[
+    {
+      label: "Total Orders",
+      value: kpis.totalOrders,
+      icon: <ShoppingCartIcon />,
+      color: "#3b82f6",
+      isCount: true,
+    },
+    {
+      label: "Completed Orders",
+      value: kpis.completedOrders,
+      icon: <CheckCircleIcon />,
+      color: "#10b981",
+      isCount: true,
+    },
+    {
+      label: "Pending Approval",
+      value: kpis.pendingApproval,
+      icon: <PendingActionsIcon />,
+      color: "#f59e0b",
+      isCount: true,
+    },
+    // {
+    //   label: "Total Revenue",
+    //   value: kpis.totalRevenue,
+    //   icon: <TrendingUpIcon />,
+    //   color: "#8b5cf6"
+    // },
+    // {
+    //   label: "Outstanding",
+    //   value: kpis.totalOutstanding,
+    //   icon: <BalanceIcon />,
+    //   color: "#ef4444"
+    // }
+  ].map((card, index) => (
+    <Grid item xs={12} sm={6} md={4} key={index}>
+      <Card
+        sx={{
+          height: "100%",
+          borderRadius: 3,
+          boxShadow:
+            "0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)",
+          border: "1px solid",
+          borderColor: "divider",
+          transition: "transform 0.2s",
+          "&:hover": { transform: "translateY(-4px)" },
+        }}
+      >
+        <CardContent sx={{ display: "flex", alignItems: "center", p: 3 }}>
+          <Box
+            sx={{
+              bgcolor: `${card.color}15`,
+              color: card.color,
+              p: 1.5,
+              borderRadius: 2,
+              display: "flex",
+              mr: 2,
+            }}
+          >
+            {card.icon}
+          </Box>
+
+          <Box>
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              fontWeight="600"
+              sx={{ textTransform: "uppercase", letterSpacing: 0.5 }}
+            >
+              {card.label}
+            </Typography>
+
+            <Typography variant="h6" fontWeight="bold">
+              {card.isCount
+                ? card.value
+                : `₹${card.value?.toLocaleString()}`}
+            </Typography>
+          </Box>
+        </CardContent>
+      </Card>
+    </Grid>
+  ))}
+</Grid>
 
       <Grid container spacing={3}>
         {/* Orders Trend */}

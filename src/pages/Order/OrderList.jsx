@@ -29,7 +29,11 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
-  DialogActions
+  DialogActions,
+  Card,
+  CardContent,
+  useMediaQuery,
+  useTheme
 } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
 import EditIcon from '@mui/icons-material/Edit';
@@ -87,6 +91,9 @@ const OrderList = () => {
     pageSize: 5
   });
   const [formLoading, setFormLoading] = useState(false);
+
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
   // Modals
   const [openCreateModal, setOpenCreateModal] = useState(false);
@@ -857,8 +864,8 @@ const OrderList = () => {
   };
 
 
-      const [deleteId, setDeleteId] = useState(null);
-  
+  const [deleteId, setDeleteId] = useState(null);
+
   const handleDeleteDraft = async (id) => {
 
     try {
@@ -935,7 +942,7 @@ const OrderList = () => {
                   onClick={(e) => {
                     e.stopPropagation();
                     // handleDeleteDraft(params.row);
-  setDeleteId(params.row.id);
+                    setDeleteId(params.row.id);
 
                   }}
                   color="error"
@@ -969,7 +976,7 @@ const OrderList = () => {
                   onClick={(e) => {
                     e.stopPropagation();
                     // handleDeleteDraft(params.row);
-  setDeleteId(params.row.id);
+                    setDeleteId(params.row.id);
 
                   }}
                   color="error"
@@ -1770,14 +1777,14 @@ const OrderList = () => {
                     <Autocomplete
                       options={products}
                       getOptionLabel={(option) => {
-                        if(option){
+                        if (option) {
                           const label = option.name || '';
-                        const available = (option.totalCount || 0) - (option.allocatedCount || 0);
-                        return `${label} (Avail: ${available})`;
+                          const price = (option.price || 0);
+                          return `${label} (Price: ₹${price})`;
                         } else {
                           return '';
                         }
-                        
+
                       }}
                       isOptionEqualToValue={(option, value) => option._id === value._id}
                       value={product.product}
@@ -2302,23 +2309,90 @@ const OrderList = () => {
 
 
 
-        <DataGrid
-          rows={orders}
-          columns={columns}
-          rowCount={totalRows}
-          paginationMode="server"
-          paginationModel={paginationModel}
-          onPaginationModelChange={setPaginationModel}
-          pageSizeOptions={[5, 10, 25]}
-          loading={loading}
-          sx={{
-            flex: 1,
-            minHeight: 300,
-            '& .MuiDataGrid-cell': {
-              py: 1
-            }
-          }}
-        />
+        {isMobile ? (
+          <Box sx={{ overflowY: 'auto', p: 1, flexGrow: 1 }}>
+            {orders.map((order) => (
+              <Card key={order.id} sx={{ mb: 2 }}>
+                <CardContent>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                    <Typography variant="subtitle1" fontWeight="bold">{order.TCRNumber}</Typography>
+                    <Chip
+                      label={order.status}
+                      color={
+                        order.status === 'completed' ? 'success' :
+                          order.status === 'pending-approval' ? 'warning' :
+                            order.status === 'approved' ? 'primary' : 'info'
+                      }
+                      size="small"
+                    />
+                  </Box>
+                  <Typography variant="body2"><strong>Company:</strong> {order.companyName}</Typography>
+                  <Typography variant="body2"><strong>Technician:</strong> {order.technicianName}</Typography>
+                  <Typography variant="body2"><strong>Customer:</strong> {order.customerName}</Typography>
+                  <Typography variant="body2" color="primary" sx={{ mt: 1, fontWeight: 'bold' }}>
+                    Total: ₹{order.totalAmount?.toFixed(2) || '0.00'}
+                  </Typography>
+
+                  <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2, gap: 1 }}>
+                    <IconButton onClick={() => handleViewDraftOpen(order)} color="primary" size="small">
+                      <VisibilityIcon />
+                    </IconButton>
+
+                    {order.status === 'draft' && (
+                      <>
+                        <IconButton onClick={() => handleEditDraftOpen(order)} color="primary" size="small">
+                          <EditIcon />
+                        </IconButton>
+                        <IconButton onClick={() => handleCompleteOpen(order)} color="primary" size="small">
+                          <CheckCircleIcon />
+                        </IconButton>
+                        {user.role === "admin" && (
+                          <IconButton onClick={() => setDeleteId(order.id)} color="error" size="small">
+                            <DeleteIcon />
+                          </IconButton>
+                        )}
+                      </>
+                    )}
+
+                    {order.status === 'pending-approval' && (
+                      <>
+                        <IconButton onClick={() => handleDiscountOpen(order)} color="success" size="small">
+                          <PercentIcon />
+                        </IconButton>
+                        {user.role === "admin" && (
+                          <IconButton onClick={() => setDeleteId(order.id)} color="error" size="small">
+                            <DeleteIcon />
+                          </IconButton>
+                        )}
+                      </>
+                    )}
+                  </Box>
+                </CardContent>
+              </Card>
+            ))}
+            {orders.length === 0 && !loading && (
+              <Typography align="center" sx={{ mt: 4 }}>No orders found</Typography>
+            )}
+          </Box>
+        ) : (
+          <DataGrid
+            rows={orders}
+            columns={columns}
+            rowCount={totalRows}
+            paginationMode="server"
+            paginationModel={paginationModel}
+            onPaginationModelChange={setPaginationModel}
+            pageSizeOptions={[5, 10, 25]}
+            loading={loading}
+            sx={{
+              flex: 1,
+              minHeight: 300,
+              '& .MuiDataGrid-cell': {
+                py: 1
+              }
+            }}
+          />
+        )}
       </Box>
 
       {renderCreateModal()}
