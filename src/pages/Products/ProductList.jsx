@@ -13,7 +13,12 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
-  DialogActions
+  DialogActions,
+  Card,
+  CardContent,
+  useMediaQuery,
+  useTheme,
+  Alert
 } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -24,6 +29,13 @@ import productApi from '../../api/product';
 
 import SearchIcon from '@mui/icons-material/Search';
 import InputAdornment from '@mui/material/InputAdornment';
+
+const formatCurrency = (value) => {
+  return new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+  }).format(value || 0);
+};
 
 const ProductList = () => {
   const { user } = useAuth();
@@ -36,6 +48,10 @@ const ProductList = () => {
     page: 0,
     pageSize: 5
   });
+
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+
   const [openCreateModal, setOpenCreateModal] = useState(false);
   const [openEditModal, setOpenEditModal] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
@@ -185,19 +201,19 @@ const ProductList = () => {
     }
   };
 
-    const [deleteId, setDeleteId] = useState(null);
-  
+  const [deleteId, setDeleteId] = useState(null);
+
 
   const handleDelete = async (id) => {
-    
-      try {
-        await productApi.deleteProduct(id);
-        setDeleteId(null);
-        fetchData();
-      } catch (err) {
-        setError('Failed to delete product');
-      }
-    
+
+    try {
+      await productApi.deleteProduct(id);
+      setDeleteId(null);
+      fetchData();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to delete product');
+    }
+
   };
 
   const columns = [
@@ -232,8 +248,8 @@ const ProductList = () => {
             <IconButton
               onClick={(e) => {
                 e.stopPropagation();
-  setDeleteId(params.row.id);
-                
+                setDeleteId(params.row.id);
+
               }}
               color="error"
             >
@@ -306,6 +322,11 @@ const ProductList = () => {
 
   return (
     <Box sx={{ height: 'calc(100vh - 200px)', width: '100%', display: 'flex', flexDirection: 'column' }}>
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>
+          {error}
+        </Alert>
+      )}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 2 }}>
         <Typography variant="h5">Products</Typography>
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
@@ -333,28 +354,61 @@ const ProductList = () => {
       </Box>
 
       <Paper sx={{ flexGrow: 1, width: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-        <DataGrid
-          rows={products}
-          columns={columns}
-          rowCount={totalRows}
-          paginationMode="server"
-          paginationModel={paginationModel}
-          onPaginationModelChange={setPaginationModel}
-          pageSizeOptions={[5, 10, 25]}
-          loading={loading}
-          disableSelectionOnClick
-          autoHeight={false}
-          sx={{
-            flexGrow: 1,
-            '& .MuiDataGrid-footerContainer': {
-              position: 'sticky',
-              bottom: 0,
-              backgroundColor: 'white',
-              zIndex: 1,
-            },
-            border: 'none',
-          }}
-        />
+        {isMobile ? (
+          <Box sx={{ overflowY: 'auto', p: 1 }}>
+            {products.map((product) => (
+              <Card key={product.id} sx={{ mb: 2, position: 'relative' }}>
+                <CardContent>
+                  <Typography variant="subtitle1" fontWeight="bold">{product.name}</Typography>
+                  <Typography variant="body2" color="textSecondary">Unit: {product.unitOfMeasure}</Typography>
+                  <Typography variant="body2" color="textSecondary">Price: {formatCurrency(product.price)}</Typography>
+                  <Typography variant="body2" color="textSecondary">Total: {product.totalCount}</Typography>
+                  <Typography variant="body2" color="textSecondary">Allocated: {product.allocatedCount || 0}</Typography>
+                  <Typography variant="body2" color="primary" fontWeight="medium">
+                    Available: {(product.totalCount || 0) - (product.allocatedCount || 0)}
+                  </Typography>
+                  <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
+                    <IconButton onClick={() => handleEditOpen(product)} color="primary">
+                      <EditIcon />
+                    </IconButton>
+                    <IconButton
+                      onClick={() => setDeleteId(product.id)}
+                      color="error"
+                    >
+                      <DeleteIcon />
+                    </IconButton>
+                  </Box>
+                </CardContent>
+              </Card>
+            ))}
+            {products.length === 0 && !loading && (
+              <Typography align="center" sx={{ mt: 4 }}>No products found</Typography>
+            )}
+          </Box>
+        ) : (
+          <DataGrid
+            rows={products}
+            columns={columns}
+            rowCount={totalRows}
+            paginationMode="server"
+            paginationModel={paginationModel}
+            onPaginationModelChange={setPaginationModel}
+            pageSizeOptions={[5, 10, 25]}
+            loading={loading}
+            disableSelectionOnClick
+            autoHeight={false}
+            sx={{
+              flexGrow: 1,
+              '& .MuiDataGrid-footerContainer': {
+                position: 'sticky',
+                bottom: 0,
+                backgroundColor: 'white',
+                zIndex: 1,
+              },
+              border: 'none',
+            }}
+          />
+        )}
       </Paper>
       {/* Create Modal */}
       <Modal
@@ -462,21 +516,26 @@ const ProductList = () => {
           </form>
         </Box>
       </Modal>
-      <Dialog open={!!deleteId} onClose={() => setDeleteId(null)}>
-  <DialogTitle>Delete Product</DialogTitle>
-  <DialogContent>
-    Are you sure you want to delete this product?
-  </DialogContent>
-  <DialogActions>
-    <Button onClick={() => setDeleteId(null)}>Cancel</Button>
-    <Button
-      color="error"
-      onClick={() => handleDelete(deleteId)}
-    >
-      Delete
-    </Button>
-  </DialogActions>
-</Dialog>
+      <Dialog open={!!deleteId} onClose={() => { setDeleteId(null); setError(''); }}>
+        <DialogTitle>Delete Product</DialogTitle>
+        <DialogContent>
+          {error && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {error}
+            </Alert>
+          )}
+          Are you sure you want to delete this product?
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => { setDeleteId(null); setError(''); }}>Cancel</Button>
+          <Button
+            color="error"
+            onClick={() => handleDelete(deleteId)}
+          >
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

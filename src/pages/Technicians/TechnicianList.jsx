@@ -17,7 +17,11 @@ import {
     Typography,
     Autocomplete,
     CircularProgress as MuiCircularProgress,
-    Paper
+    Paper,
+    Card,
+    CardContent,
+    useMediaQuery,
+    useTheme
 } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
 import CloseIcon from '@mui/icons-material/Close';
@@ -45,6 +49,9 @@ const TechnicianList = () => {
         page: 0,
         pageSize: 5
     });
+
+    const theme = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
     const [searchTerm, setSearchTerm] = useState('');
     const [activeSearchTerm, setActiveSearchTerm] = useState('');
@@ -604,28 +611,73 @@ const TechnicianList = () => {
             </Box>
 
             <Paper sx={{ flexGrow: 1, width: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                <DataGrid
-                    rows={technicians}
-                    columns={columns}
-                    rowCount={totalRows}
-                    paginationMode="server"
-                    paginationModel={paginationModel}
-                    onPaginationModelChange={setPaginationModel}
-                    pageSizeOptions={[5, 10, 25]}
-                    loading={loading}
-                    disableSelectionOnClick
-                    autoHeight={false}
-                    sx={{
-                        flexGrow: 1,
-                        '& .MuiDataGrid-footerContainer': {
-                            position: 'sticky',
-                            bottom: 0,
-                            backgroundColor: 'white',
-                            zIndex: 1,
-                        },
-                        border: 'none',
-                    }}
-                />
+                {isMobile ? (
+                    <Box sx={{ overflowY: 'auto', p: 1 }}>
+                        {technicians.map((tech) => (
+                            <Card key={tech.id} sx={{ mb: 2 }}>
+                                <CardContent>
+                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                                        <Typography variant="subtitle1" fontWeight="bold">{tech.name}</Typography>
+                                        <Chip
+                                            label={tech.isBlocked ? 'Blocked' : 'Active'}
+                                            color={tech.isBlocked ? 'error' : 'success'}
+                                            size="small"
+                                        />
+                                    </Box>
+                                    <Typography variant="body2" color="textSecondary">Phone: {tech.phone}</Typography>
+                                    <Typography variant="body2" color="textSecondary">Email: {tech.email}</Typography>
+                                    <Box sx={{ mt: 1, mb: 1 }}>
+                                        {(tech.companies || []).map(company => (
+                                            <Chip
+                                                key={company?._id || Math.random()}
+                                                label={company?.name || 'N/A'}
+                                                size="small"
+                                                sx={{ mr: 0.5, mb: 0.5 }}
+                                            />
+                                        ))}
+                                    </Box>
+                                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
+                                        <IconButton onClick={() => handleEditOpen(tech)} color="primary">
+                                            <EditIcon />
+                                        </IconButton>
+                                        <IconButton
+                                            onClick={() => handleBlockToggle(tech.id, tech.isBlocked)}
+                                            color={tech.isBlocked ? 'default' : 'error'}
+                                        >
+                                            {tech.isBlocked ? <LockOpenIcon /> : <BlockIcon />}
+                                        </IconButton>
+                                    </Box>
+                                </CardContent>
+                            </Card>
+                        ))}
+                        {technicians.length === 0 && !loading && (
+                            <Typography align="center" sx={{ mt: 4 }}>No technicians found</Typography>
+                        )}
+                    </Box>
+                ) : (
+                    <DataGrid
+                        rows={technicians}
+                        columns={columns}
+                        rowCount={totalRows}
+                        paginationMode="server"
+                        paginationModel={paginationModel}
+                        onPaginationModelChange={setPaginationModel}
+                        pageSizeOptions={[5, 10, 25]}
+                        loading={loading}
+                        disableSelectionOnClick
+                        autoHeight={false}
+                        sx={{
+                            flexGrow: 1,
+                            '& .MuiDataGrid-footerContainer': {
+                                position: 'sticky',
+                                bottom: 0,
+                                backgroundColor: 'white',
+                                zIndex: 1,
+                            },
+                            border: 'none',
+                        }}
+                    />
+                )}
             </Paper>
 
             {/* Create Modal */}

@@ -22,6 +22,12 @@ import { DataGrid } from '@mui/x-data-grid';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
 import CloseIcon from '@mui/icons-material/Close';
+import {
+  Card,
+  CardContent,
+  useMediaQuery,
+  useTheme
+} from '@mui/material';
 import { useAuth } from '../../context/AuthContext';
 import companyApi from '../../api/company';
 
@@ -39,6 +45,9 @@ const CompanyList = () => {
     page: 0,
     pageSize: 5,
   });
+
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
   const [searchTerm, setSearchTerm] = useState('');
   const [activeSearchTerm, setActiveSearchTerm] = useState('');
@@ -176,15 +185,15 @@ const CompanyList = () => {
 
   const handleDelete = async (id) => {
 
-  try {
-    await companyApi.deleteCompany(id);
-    setDeleteId(null)
-    fetchData();
-  } catch (err) {
-    console.error(err);
-    setError('Failed to delete company');
-  }
-};
+    try {
+      await companyApi.deleteCompany(id);
+      setDeleteId(null)
+      fetchData();
+    } catch (err) {
+      console.error(err);
+      setError('Failed to delete company');
+    }
+  };
 
   // Columns for DataGrid
   const columns = [
@@ -218,8 +227,8 @@ const CompanyList = () => {
             <IconButton
               onClick={(e) => {
                 // e.preventDefault();
-  e.stopPropagation();
-  setDeleteId(params.row.id);
+                e.stopPropagation();
+                setDeleteId(params.row.id);
               }}
               color="error"
             >
@@ -303,28 +312,60 @@ const CompanyList = () => {
       </Box>
 
       <Paper sx={{ flexGrow: 1, width: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-        <DataGrid
-          rows={companies}
-          columns={columns}
-          rowCount={totalRows}
-          paginationMode="server"
-          paginationModel={paginationModel}
-          onPaginationModelChange={setPaginationModel}
-          pageSizeOptions={[5, 10, 25]}
-          loading={loading}
-          disableSelectionOnClick
-          autoHeight={false}
-          sx={{
-            flexGrow: 1,
-            '& .MuiDataGrid-footerContainer': {
-              position: 'sticky',
-              bottom: 0,
-              backgroundColor: 'white',
-              zIndex: 1,
-            },
-            border: 'none',
-          }}
-        />
+        {isMobile ? (
+          <Box sx={{ overflowY: 'auto', p: 1 }}>
+            {companies.map((company) => (
+              <Card key={company.id} sx={{ mb: 2 }}>
+                <CardContent>
+                  <Typography variant="subtitle1" fontWeight="bold">{company.name}</Typography>
+                  <Typography variant="body2" color="textSecondary">
+                    Installation Charge: ₹{company.installationCharge}
+                  </Typography>
+                  <Typography variant="body2" color="textSecondary">
+                    Created At: {company.createdAt}
+                  </Typography>
+                  <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
+                    <IconButton onClick={() => handleEditOpen(company)} color="primary">
+                      <EditIcon />
+                    </IconButton>
+                    <IconButton
+                      onClick={() => setDeleteId(company.id)}
+                      color="error"
+                    >
+                      <DeleteIcon />
+                    </IconButton>
+                  </Box>
+                </CardContent>
+              </Card>
+            ))}
+            {companies.length === 0 && !loading && (
+              <Typography align="center" sx={{ mt: 4 }}>No companies found</Typography>
+            )}
+          </Box>
+        ) : (
+          <DataGrid
+            rows={companies}
+            columns={columns}
+            rowCount={totalRows}
+            paginationMode="server"
+            paginationModel={paginationModel}
+            onPaginationModelChange={setPaginationModel}
+            pageSizeOptions={[5, 10, 25]}
+            loading={loading}
+            disableSelectionOnClick
+            autoHeight={false}
+            sx={{
+              flexGrow: 1,
+              '& .MuiDataGrid-footerContainer': {
+                position: 'sticky',
+                bottom: 0,
+                backgroundColor: 'white',
+                zIndex: 1,
+              },
+              border: 'none',
+            }}
+          />
+        )}
       </Paper>
 
 
@@ -416,20 +457,20 @@ const CompanyList = () => {
         </Box>
       </Modal>
       <Dialog open={!!deleteId} onClose={() => setDeleteId(null)}>
-  <DialogTitle>Delete Company</DialogTitle>
-  <DialogContent>
-    Are you sure you want to delete this company?
-  </DialogContent>
-  <DialogActions>
-    <Button onClick={() => setDeleteId(null)}>Cancel</Button>
-    <Button
-      color="error"
-      onClick={() => handleDelete(deleteId)}
-    >
-      Delete
-    </Button>
-  </DialogActions>
-</Dialog>
+        <DialogTitle>Delete Company</DialogTitle>
+        <DialogContent>
+          Are you sure you want to delete this company?
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteId(null)}>Cancel</Button>
+          <Button
+            color="error"
+            onClick={() => handleDelete(deleteId)}
+          >
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

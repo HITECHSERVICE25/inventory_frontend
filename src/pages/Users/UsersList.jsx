@@ -21,6 +21,7 @@ import { useAuth } from '../../context/AuthContext';
 import api from '../../api/auth';
 import { DataGrid } from '@mui/x-data-grid';
 import { Cancel, Edit, Save } from '@mui/icons-material';
+import { Card, CardContent, Chip, useMediaQuery, useTheme } from '@mui/material';
 
 import InputAdornment from "@mui/material/InputAdornment";
 
@@ -40,6 +41,9 @@ const UsersList = () => {
     page: 0,
     pageSize: 5
   });
+
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
   const [searchTerm, setSearchTerm] = useState('');
   const [activeSearchTerm, setActiveSearchTerm] = useState('');
@@ -234,50 +238,77 @@ const UsersList = () => {
       </Box>
 
       <Paper sx={{ flexGrow: 1, width: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-        <DataGrid
-          rows={users}
-          columns={[
-            { field: 'sl_no', headerName: 'Sl No.', width: 100 },
-            { field: 'name', headerName: 'Name', width: 150 },
-            { field: 'email', headerName: 'Email', width: 250 },
-            { field: 'role', headerName: 'Role', width: 150 },
-            { field: 'createdAt', headerName: 'Date', width: 200, valueFormatter: (params) => new Date(params).toLocaleDateString() },
-            user.role == "admin" && {
-              field: 'actions',
-              headerName: 'Actions',
-              width: 100,
-              renderCell: (params) => (
-                <Box>
-                  <IconButton
-                    color="primary"
-                    onClick={() => handleOpenEditModal(params.row, params)}
-                    size="small"
-                  >
-                    <Edit />
-                  </IconButton>
-                </Box>
-              ),
-            }
-          ]}
-          rowCount={totalRows}
-          paginationMode="server"
-          paginationModel={paginationModel}
-          onPaginationModelChange={setPaginationModel}
-          pageSizeOptions={[5, 10, 25]}
-          loading={loading}
-          disableSelectionOnClick
-          autoHeight={false}
-          sx={{
-            flexGrow: 1,
-            '& .MuiDataGrid-footerContainer': {
-              position: 'sticky',
-              bottom: 0,
-              backgroundColor: 'white',
-              zIndex: 1,
-            },
-            border: 'none',
-          }}
-        />
+        {isMobile ? (
+          <Box sx={{ overflowY: 'auto', p: 1 }}>
+            {users.map((u) => (
+              <Card key={u.id} sx={{ mb: 2 }}>
+                <CardContent>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                    <Typography variant="subtitle1" fontWeight="bold">{u.name}</Typography>
+                    <Chip label={u.role} size="small" color="primary" variant="outlined" />
+                  </Box>
+                  <Typography variant="body2" color="textSecondary">{u.email}</Typography>
+                  <Typography variant="caption" color="textSecondary">Created: {new Date(u.createdAt).toLocaleDateString()}</Typography>
+                  {user.role === "admin" && (
+                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
+                      <IconButton color="primary" onClick={() => handleOpenEditModal(u)} size="small">
+                        <Edit />
+                      </IconButton>
+                    </Box>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+            {users.length === 0 && !loading && (
+              <Typography align="center" sx={{ mt: 4 }}>No users found</Typography>
+            )}
+          </Box>
+        ) : (
+          <DataGrid
+            rows={users}
+            columns={[
+              { field: 'sl_no', headerName: 'Sl No.', width: 100 },
+              { field: 'name', headerName: 'Name', width: 150 },
+              { field: 'email', headerName: 'Email', width: 250 },
+              { field: 'role', headerName: 'Role', width: 150 },
+              { field: 'createdAt', headerName: 'Date', width: 200, valueFormatter: (params) => new Date(params).toLocaleDateString() },
+              user.role == "admin" && {
+                field: 'actions',
+                headerName: 'Actions',
+                width: 100,
+                renderCell: (params) => (
+                  <Box>
+                    <IconButton
+                      color="primary"
+                      onClick={() => handleOpenEditModal(params.row, params)}
+                      size="small"
+                    >
+                      <Edit />
+                    </IconButton>
+                  </Box>
+                ),
+              }
+            ]}
+            rowCount={totalRows}
+            paginationMode="server"
+            paginationModel={paginationModel}
+            onPaginationModelChange={setPaginationModel}
+            pageSizeOptions={[5, 10, 25]}
+            loading={loading}
+            disableSelectionOnClick
+            autoHeight={false}
+            sx={{
+              flexGrow: 1,
+              '& .MuiDataGrid-footerContainer': {
+                position: 'sticky',
+                bottom: 0,
+                backgroundColor: 'white',
+                zIndex: 1,
+              },
+              border: 'none',
+            }}
+          />
+        )}
       </Paper>
 
       {/* Add User Modal */}

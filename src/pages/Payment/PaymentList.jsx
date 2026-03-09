@@ -22,7 +22,9 @@ import {
     Alert,
     Avatar,
     Autocomplete,
-    Divider
+    Divider,
+    useMediaQuery,
+    useTheme
 } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
 import CloseIcon from '@mui/icons-material/Close';
@@ -63,6 +65,9 @@ const PaymentList = () => {
         page: 0,
         pageSize: 10
     });
+
+    const theme = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
     // Modal states
     const [openPaymentModal, setOpenPaymentModal] = useState(false);
@@ -849,36 +854,88 @@ const PaymentList = () => {
                     )}
 
                     <Box sx={{ height: 600, width: '100%' }}>
-                        <DataGrid
-                            rows={activeTab === 0 ? payments : techniciansWithBalances}
-                            columns={activeTab === 0 ? paymentColumns : balanceColumns}
-                            rowCount={totalRows}
-                            paginationMode="server"
-                            paginationModel={paginationModel}
-                            onPaginationModelChange={setPaginationModel}
-                            pageSizeOptions={[10, 25, 50]}
-                            loading={loading}
-                            disableSelectionOnClick
-                            sx={{
-                                border: 'none',
-                                '& .MuiDataGrid-columnHeaders': {
-                                    bgcolor: 'grey.50',
-                                    borderBottom: '1px solid',
-                                    borderColor: 'divider',
-                                },
-                                '& .MuiDataGrid-cell': {
-                                    borderBottom: '1px solid',
-                                    borderColor: 'grey.100',
-                                },
-                                '& .MuiDataGrid-row:hover': {
-                                    bgcolor: 'grey.50',
-                                },
-                                '& .MuiDataGrid-footerContainer': {
-                                    borderTop: '1px solid',
-                                    borderColor: 'divider',
-                                }
-                            }}
-                        />
+                        {isMobile ? (
+                            <Box sx={{ overflowY: 'auto', p: 1, height: '100%' }}>
+                                {activeTab === 0 ? (
+                                    payments.map((p) => (
+                                        <Card key={p.id} sx={{ mb: 2 }}>
+                                            <CardContent>
+                                                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                                                    <Typography variant="subtitle1" fontWeight="bold">{p.technician?.name}</Typography>
+                                                    <Typography variant="subtitle1" color="success.main" fontWeight="bold">₹{p.amount}</Typography>
+                                                </Box>
+                                                <Typography variant="body2" color="textSecondary">Method: {p.method?.replace('_', ' ').toUpperCase()}</Typography>
+                                                <Typography variant="body2" color="textSecondary">Ref: {p.reference || '--'}</Typography>
+                                                <Typography variant="caption" color="textSecondary">Date: {new Date(p.collectedAt).toLocaleDateString()}</Typography>
+                                                <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
+                                                    <IconButton onClick={() => handleViewDetails(p)} color="primary" size="small">
+                                                        <ViewIcon />
+                                                    </IconButton>
+                                                </Box>
+                                            </CardContent>
+                                        </Card>
+                                    ))
+                                ) : (
+                                    techniciansWithBalances.map((t) => (
+                                        <Card key={t.id} sx={{ mb: 2 }}>
+                                            <CardContent>
+                                                <Typography variant="subtitle1" fontWeight="bold">{t.name}</Typography>
+                                                <Typography variant="body2" color="textSecondary">Outstanding:
+                                                    <Typography component="span" fontWeight="bold" color={t.outstandingBalance > 0 ? "error.main" : "success.main"} sx={{ ml: 1 }}>
+                                                        ₹{(t.outstandingBalance || 0).toLocaleString()}
+                                                    </Typography>
+                                                </Typography>
+                                                <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
+                                                    <Button
+                                                        variant="contained"
+                                                        size="small"
+                                                        startIcon={<PaymentIcon />}
+                                                        onClick={() => handlePaymentOpen(t)}
+                                                        disabled={!t.outstandingBalance || t.outstandingBalance <= 0}
+                                                    >
+                                                        Record
+                                                    </Button>
+                                                </Box>
+                                            </CardContent>
+                                        </Card>
+                                    ))
+                                )}
+                                {((activeTab === 0 && payments.length === 0) || (activeTab === 1 && techniciansWithBalances.length === 0)) && !loading && (
+                                    <Typography align="center" sx={{ mt: 4 }}>No data found</Typography>
+                                )}
+                            </Box>
+                        ) : (
+                            <DataGrid
+                                rows={activeTab === 0 ? payments : techniciansWithBalances}
+                                columns={activeTab === 0 ? paymentColumns : balanceColumns}
+                                rowCount={totalRows}
+                                paginationMode="server"
+                                paginationModel={paginationModel}
+                                onPaginationModelChange={setPaginationModel}
+                                pageSizeOptions={[10, 25, 50]}
+                                loading={loading}
+                                disableSelectionOnClick
+                                sx={{
+                                    border: 'none',
+                                    '& .MuiDataGrid-columnHeaders': {
+                                        bgcolor: 'grey.50',
+                                        borderBottom: '1px solid',
+                                        borderColor: 'divider',
+                                    },
+                                    '& .MuiDataGrid-cell': {
+                                        borderBottom: '1px solid',
+                                        borderColor: 'grey.100',
+                                    },
+                                    '& .MuiDataGrid-row:hover': {
+                                        bgcolor: 'grey.50',
+                                    },
+                                    '& .MuiDataGrid-footerContainer': {
+                                        borderTop: '1px solid',
+                                        borderColor: 'divider',
+                                    }
+                                }}
+                            />
+                        )}
                     </Box>
                 </CardContent>
             </Card>

@@ -17,6 +17,10 @@ import {
   Typography,
   Autocomplete,
   CircularProgress as MuiCircularProgress,
+  Card,
+  CardContent,
+  useMediaQuery,
+  useTheme
 } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
 import CloseIcon from '@mui/icons-material/Close';
@@ -39,6 +43,9 @@ const InventoryList = () => {
     page: 0,
     pageSize: 5,
   });
+
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [openModal, setOpenModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeSearchTerm, setActiveSearchTerm] = useState('');
@@ -302,7 +309,12 @@ const InventoryList = () => {
             type="number"
             value={formData.quantity}
             onChange={handleChange}
-            inputProps={{ min: 1 }}
+            InputProps={{
+              inputProps: {
+                min: 0,
+                step: "0.01",   // 👈 THIS FIXES IT
+              },
+            }}
           />
           <FormHelperText>{formErrors.quantity}</FormHelperText>
         </FormControl>
@@ -313,12 +325,12 @@ const InventoryList = () => {
   if (loading) return <CircularProgress />;
 
   return (
-    <Box sx={{ height: 'calc(100vh - 200px)', width: '100%', display: 'flex', flexDirection: 'column' }}>
+    <Box sx={{ p: { xs: 2, md: 3 }, height: '100%', overflowY: 'auto' }}>
       {/* Header */}
 
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 2 }}>
-        <Typography variant="h5">Inventory</Typography>
-        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+        <Typography variant="h4" fontWeight="bold">Inventory</Typography>
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
           <TextField
             size="small"
             placeholder="Search inventory..."
@@ -333,44 +345,70 @@ const InventoryList = () => {
               ),
             }}
           />
-          <Button variant="outlined" onClick={handleSearch}>
-            Search
-          </Button>
-          <Button variant="contained" onClick={handleOpenModal}>
-            Add Allocation
-          </Button>
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <Button variant="outlined" onClick={handleSearch}>
+              Search
+            </Button>
+            <Button variant="contained" onClick={handleOpenModal}>
+              Add Allocation
+            </Button>
+          </Box>
         </Box>
       </Box>
 
-      <DateRangeExport
-        title="Export Inventory"
-        filePrefix="Inventory"
-        exportApi={inventoryApi.exportAllocations}
-      />
-      {/* Allocation Logs DataGrid */}
-      <Paper sx={{ flexGrow: 1, width: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column', mt: 2 }}>
-        <DataGrid
-          rows={allocationLogs}
-          columns={columns}
-          rowCount={totalRows}
-          paginationMode="server"
-          paginationModel={paginationModel}
-          onPaginationModelChange={setPaginationModel}
-          pageSizeOptions={[5, 10, 25]}
-          loading={loading}
-          disableSelectionOnClick
-          autoHeight={false}
-          sx={{
-            flexGrow: 1,
-            '& .MuiDataGrid-footerContainer': {
-              position: 'sticky',
-              bottom: 0,
-              backgroundColor: 'white',
-              zIndex: 1,
-            },
-            border: 'none',
-          }}
+      <Box sx={{ mb: 2 }}>
+        <DateRangeExport
+          title="Export Inventory"
+          filePrefix="Inventory"
+          exportApi={inventoryApi.exportAllocations}
         />
+      </Box>
+      {/* Allocation Logs DataGrid or Card View */}
+      <Paper sx={{ mt: 2, borderRadius: 2, overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: 'none', border: '1px solid', borderColor: 'divider' }}>
+        {isMobile ? (
+          <Box sx={{ p: 1 }}>
+            {allocationLogs.map((log) => (
+              <Card key={log.id} sx={{ mb: 2, border: '1px solid', borderColor: 'divider', boxShadow: 'none', borderRadius: 2 }}>
+                <CardContent>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
+                    <Typography variant="subtitle1" fontWeight="bold">{log.productName}</Typography>
+                    <Typography variant="body2" fontWeight="bold" color="primary">Qty: {log.quantity}</Typography>
+                  </Box>
+                  <Typography variant="body2" color="textSecondary">Technician: {log.technicianName}</Typography>
+                  <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mt: 1 }}>
+                    Date: {new Date(log.createdAt).toLocaleDateString()}
+                  </Typography>
+                </CardContent>
+              </Card>
+            ))}
+            {allocationLogs.length === 0 && !loading && (
+              <Typography align="center" sx={{ py: 4, color: 'text.secondary' }}>No allocation logs found</Typography>
+            )}
+          </Box>
+        ) : (
+          <Box sx={{ height: 500, width: '100%' }}>
+            <DataGrid
+              rows={allocationLogs}
+              columns={columns}
+              rowCount={totalRows}
+              paginationMode="server"
+              paginationModel={paginationModel}
+              onPaginationModelChange={setPaginationModel}
+              pageSizeOptions={[5, 10, 25]}
+              loading={loading}
+              disableSelectionOnClick
+              sx={{
+                border: 'none',
+                '& .MuiDataGrid-footerContainer': {
+                  position: 'sticky',
+                  bottom: 0,
+                  backgroundColor: 'white',
+                  zIndex: 1,
+                },
+              }}
+            />
+          </Box>
+        )}
       </Paper>
 
       {/* Add Allocation Modal */}
@@ -378,7 +416,7 @@ const InventoryList = () => {
         open={openModal}
 
         onClose={handleCloseModal}
-        disableScrollLock 
+        disableScrollLock
         sx={{
           display: 'flex',
           alignItems: 'center',
