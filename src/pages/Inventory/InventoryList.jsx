@@ -309,7 +309,12 @@ const InventoryList = () => {
             type="number"
             value={formData.quantity}
             onChange={handleChange}
-            inputProps={{ min: 1 }}
+            InputProps={{
+              inputProps: {
+                min: 0,
+                step: "0.01",   // 👈 THIS FIXES IT
+              },
+            }}
           />
           <FormHelperText>{formErrors.quantity}</FormHelperText>
         </FormControl>
