@@ -1,3 +1,84 @@
+import { useState, useEffect } from 'react';
+import {
+  Box,
+  Button,
+  CircularProgress,
+  Modal,
+  TextField,
+  Tooltip,
+  IconButton,
+  Grid,
+  Typography,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  FormHelperText,
+  Chip,
+  Divider,
+  Alert,
+  FormControlLabel,
+  Checkbox,
+  Paper,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
+  InputAdornment,
+  Autocomplete,
+  CircularProgress as MuiCircularProgress,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Card,
+  CardContent,
+  useMediaQuery,
+  useTheme
+} from '@mui/material';
+import { DataGrid } from '@mui/x-data-grid';
+import EditIcon from '@mui/icons-material/Edit';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
+import Slider from '@mui/material/Slider';
+import PercentIcon from '@mui/icons-material/Percent';
+import CloseIcon from '@mui/icons-material/Close';
+import { useAuth } from '../../context/AuthContext';
+import orderApi from '../../api/order';
+import companyApi from '../../api/company';
+import technicianApi from '../../api/technician';
+import productApi from '../../api/product';
+import DeleteIcon from "@mui/icons-material/Delete";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import { getFinalAmountAfterDiscount } from '../../helpers/order.helper';
+import DateRangeExport from '../../components/DateRangeExport';
+
+
+
+const formatCurrency = (value) =>
+  `₹${Number(value ?? 0).toFixed(2)}`;
+
+const modalStyle = {
+  position: 'relative',
+  width: { xs: '95%', md: 800 },
+  minWidth: { xs: 0, md: 600 },
+  mx: 'auto',
+  bgcolor: 'background.paper',
+  boxShadow: 24,
+  p: 4,
+  borderRadius: 2,
+  maxHeight: '90vh',
+  overflowY: 'auto'
+};
+
+const modalContainerSx = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  overflow: 'auto',
+};
+
+
 const OrderList = () => {
   const { user } = useAuth();
   const [orders, setOrders] = useState([]);
@@ -9,6 +90,10 @@ const OrderList = () => {
     page: 0,
     pageSize: 5
   });
+  const [formLoading, setFormLoading] = useState(false);
+
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
   // Modals
   const [openCreateModal, setOpenCreateModal] = useState(false);
@@ -23,15 +108,101 @@ const OrderList = () => {
   const [filteredTechnicians, setFilteredTechnicians] = useState([]);
   const [products, setProducts] = useState([]);
   const [loadingTechnicians, setLoadingTechnicians] = useState(false);
+  const [loadingCompanies, setLoadingCompanies] = useState(false);
+  const [loadingProducts, setLoadingProducts] = useState(false);
+
+  const [companySearch, setCompanySearch] = useState('');
+  const [technicianSearch, setTechnicianSearch] = useState('');
+  const [productSearch, setProductSearch] = useState('');
+
+  // Dropdown Fetchers
+  const fetchCompaniesDropdown = async (search = '') => {
+    try {
+      setLoadingCompanies(true);
+      const res = await companyApi.getCompanies({ search, limit: 5 });
+      setCompanies(res.data.data || []);
+    } catch (err) {
+      console.error('Failed to load companies', err);
+    } finally {
+      setLoadingCompanies(false);
+    }
+  };
+
+  const fetchTechniciansDropdown = async (search = '') => {
+    try {
+      setLoadingTechnicians(true);
+      const res = await technicianApi.getTechnicians({ search, limit: 5 });
+      setFilteredTechnicians(res.data.data || []);
+    } catch (err) {
+      console.error('Failed to load technicians', err);
+    } finally {
+      setLoadingTechnicians(false);
+    }
+  };
+
+  const fetchProductsDropdown = async (search = '') => {
+    try {
+      setLoadingProducts(true);
+      const res = await productApi.getProducts({ search, limit: 5 });
+      setProducts(res.data.data || []);
+    } catch (err) {
+      console.error('Failed to load products', err);
+    } finally {
+      setLoadingProducts(false);
+    }
+  };
+
+  // Initial load
+  useEffect(() => {
+    fetchCompaniesDropdown();
+    fetchTechniciansDropdown();
+    fetchProductsDropdown();
+  }, []);
+
+  // Debounced search for dropdowns
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (companySearch) fetchCompaniesDropdown(companySearch);
+      else if (openCreateModal || openEditModal) fetchCompaniesDropdown();
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [companySearch]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (technicianSearch) fetchTechniciansDropdown(technicianSearch);
+      else if (openCreateModal || openEditModal) fetchTechniciansDropdown();
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [technicianSearch]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (productSearch) fetchProductsDropdown(productSearch);
+      else if (openCompleteModal) fetchProductsDropdown();
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [productSearch]);
 
   const [discountSplit, setDiscountSplit] = useState({ owner: 100, technician: 0 });
+
+  //   const [productDiscountSplit, setProductDiscountSplit] = useState({
+  //   owner: 100,
+  //   technician: 0
+  // });
+
+  // const [miscDiscountSplit, setMiscDiscountSplit] = useState({
+  //   owner: 100,
+  //   technician: 0
+  // });
 
 
   // Form States
   const [draftForm, setDraftForm] = useState({
     TCRNumber: '',
-    company: '',
-    technician: '',
+    company: null,
+    technician: null,
+    freeInstallation: false,
     customer: {
       name: '',
       contact: { phone: '', alternatePhone: '' },
@@ -44,8 +215,20 @@ const OrderList = () => {
   const [completeForm, setCompleteForm] = useState({
     products: [],
     miscellaneousCost: 0,
-    discountPercentage: 0
+    fittingCost: 0,
+    discount: {
+      type: 'percentage', // default
+      value: 0
+    }
   });
+
+  const [searchInput, setSearchInput] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [exportLoading, setExportLoading] = useState(false);
+
+
 
 
   // Add this function to handle discount modal opening
@@ -53,140 +236,199 @@ const OrderList = () => {
     setSelectedOrder(order);
     // Initialize with 100% owner responsibility by default
     setDiscountSplit({ owner: 100, technician: 0 });
+    // setMiscDiscountSplit({ owner: 100, technician: 0 });
+
     setOpenDiscountModal(true);
   };
 
-  // Add these functions for discount approval/rejection
-  const handleDiscountSplitChange = (event, newValue) => {
-    setDiscountSplit({
-      owner: newValue,
-      technician: 100 - newValue
-    });
-  };
+
+  // const calculateDiscountAmount = (order) => {
+  //   if (!order) return 0;
+
+  //   // Calculate product total
+  //   const productTotal = order.products.reduce((sum, item) => {
+  //     const price = item.product?.price || 0;
+  //     const quantity = item.quantity || 0;
+  //     return sum + (price * quantity);
+  //   }, 0);
+
+  //   // Calculate total amount
+  //   const totalAmount = productTotal +
+  //     (order.installationCharge || 0) +
+  //     (order.miscellaneousCost || 0);
+
+  //   // Calculate discount amount
+  //   return totalAmount * ((order.discountPercentage || 0) / 100);
+  // };
 
   const calculateDiscountAmount = (order) => {
-    if (!order) return 0;
+    if (!order) return { product: 0, misc: 0 };
 
-    // Calculate product total
-    const productTotal = order.products.reduce((sum, item) => {
-      const price = item.product?.price || 0;
-      const quantity = item.quantity || 0;
-      return sum + (price * quantity);
-    }, 0);
+    const productTotal = order.products.reduce(
+      (sum, item) => sum + (item.product?.price || 0) * item.quantity,
+      0
+    );
 
-    // Calculate total amount
-    const totalAmount = productTotal +
-      (order.installationCharge || 0) +
-      (order.miscellaneousCost || 0);
+    const productDiscount =
+      productTotal * ((order.productDiscountPercentage || 0) / 100);
 
-    // Calculate discount amount
-    return totalAmount * ((order.discountPercentage || 0) / 100);
+    const miscDiscount =
+      (order.miscellaneousCost || 0) *
+      ((order.miscDiscountPercentage || 0) / 100);
+
+    return {
+      product: productDiscount,
+      misc: miscDiscount
+    };
   };
+
+
 
   const handleApproveDiscount = async () => {
     try {
-      setLoading(true);
+      setFormLoading(true);
+      setError('');
       await orderApi.approveDiscount(selectedOrder.id, {
         ownerPercentage: discountSplit.owner,
         technicianPercentage: discountSplit.technician
       });
 
-      // Update local state
-      setOrders(prevOrders =>
-        prevOrders.map(order =>
-          order.id === selectedOrder.id
-            ? {
-              ...order,
-              status: 'completed',
-              discountApproved: 'approved'
-            }
-            : order
-        )
-      );
+      fetchData();
       setOpenDiscountModal(false);
+
     } catch (err) {
-      setError(err.response?.data?.error?.message || 'Failed to approve discount');
-      console.error(err);
+      setError(
+        err.response?.data?.error?.message ||
+        'Failed to approve discount'
+      );
     } finally {
-      setLoading(false);
+      setFormLoading(false);
     }
   };
 
+
   const handleRejectDiscount = async () => {
     try {
-      setLoading(true);
+      setFormLoading(true);
+      setError('');
       await orderApi.rejectDiscount(selectedOrder.id);
 
-      // Update local state
-      setOrders(prevOrders =>
-        prevOrders.map(order =>
-          order.id === selectedOrder.id
-            ? {
-              ...order,
-              discountApproved: 'rejected'
-            }
-            : order
-        )
-      );
+      fetchData();
       setOpenDiscountModal(false);
     } catch (err) {
       setError(err.response?.data?.error?.message || 'Failed to reject discount');
       console.error(err);
     } finally {
+      setFormLoading(false);
+    }
+  };
+
+  // const fetchData = async () => {
+  //     try {
+  //       const params = {
+  //         page: paginationModel.page + 1,
+  //         limit: paginationModel.pageSize,
+  //       };
+  //       const res = await orderApi.getDraftOrders(params);
+
+  //       // Extract data from the new response structure
+  //       const responseData = res.data;
+  //       const ordersArray = responseData.data || [];
+  //       const pagination = responseData.pagination;
+
+  //       // Calculate total amount for each order
+  //       const ordersWithTotal = ordersArray.map(order => {
+  //         const total = getFinalAmountAfterDiscount(order);
+
+  //         return {
+  //           ...order,
+  //           id: order._id,
+  //           companyName: order.company?.name,
+  //           technicianName: order.technician?.name,
+  //           customerName: order.customer?.name,
+  //           status: order.status,
+  //           totalAmount: total
+  //         };
+  //       });
+
+  //       setOrders(ordersWithTotal);
+  //       setTotalRows(pagination?.total || 0);
+  //     } catch (err) {
+  //       setError('Failed to load orders');
+  //       console.error(err);
+  //     } finally {
+  //       setLoading(false);
+  //     }
+  //   };
+
+
+  const handleSearch = () => {
+    setSearchQuery(searchInput);
+    setPaginationModel(prev => ({ ...prev, page: 0 }));
+  };
+
+  const handleKeyDown = (event) => {
+    if (event.key === 'Enter') {
+      handleSearch();
+    }
+  };
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+
+      const params = {
+        page: paginationModel.page + 1,
+        limit: paginationModel.pageSize,
+      };
+
+      if (searchQuery) {
+        params.search = searchQuery;
+      }
+
+      const res = await orderApi.getDraftOrders(params);
+
+      const responseData = res.data;
+      const ordersArray = responseData.data || [];
+      const pagination = responseData.pagination;
+
+      const ordersWithTotal = ordersArray.map(order => {
+        const total = getFinalAmountAfterDiscount(order);
+
+        return {
+          ...order,
+          id: order._id,
+          companyName: order.company?.name,
+          technicianName: order.technician?.name,
+          customerName: order.customer?.name,
+          status: order.status,
+          totalAmount: total
+        };
+      });
+
+      setOrders(ordersWithTotal);
+      setTotalRows(pagination?.total || 0);
+    } catch (err) {
+      setError('Failed to load orders');
+      console.error(err);
+    } finally {
       setLoading(false);
     }
   };
 
+  // Debounced search
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const params = {
-          page: paginationModel.page + 1,
-          limit: paginationModel.pageSize,
-        };
-        const res = await orderApi.getDraftOrders(params);
+    const timer = setTimeout(() => {
+      setSearchQuery(searchInput);
+      setPaginationModel(prev => prev.page === 0 ? prev : { ...prev, page: 0 });
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
 
-        // Extract data from the new response structure
-        const responseData = res.data;
-        const ordersArray = responseData.data || [];
-        const pagination = responseData.pagination;
+  useEffect(() => {
 
-        // Calculate total amount for each order
-        const ordersWithTotal = ordersArray.map(order => {
-          const productTotal = order.products.reduce((sum, product) => {
-            return sum + (product.product?.price || 0) * (product.quantity || 0);
-          }, 0);
-
-          const installationCharge = order.installationCharge || 0;
-          const miscellaneousCost = order.miscellaneousCost || 0;
-          const discountPercentage = order.discountPercentage || 0;
-
-          const subtotal = productTotal + installationCharge + miscellaneousCost;
-          const discountAmount = (subtotal * discountPercentage) / 100;
-          const total = subtotal - discountAmount;
-
-          return {
-            ...order,
-            id: order._id,
-            companyName: order.company?.name,
-            technicianName: order.technician?.name,
-            customerName: order.customer?.name,
-            status: order.status,
-            totalAmount: total
-          };
-        });
-
-        setOrders(ordersWithTotal);
-        setTotalRows(pagination?.total || 0);
-      } catch (err) {
-        setError('Failed to load orders');
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchData();
-  }, [paginationModel]);
+  }, [paginationModel, searchQuery]);
 
   // Fetch companies and products
   useEffect(() => {
@@ -208,34 +450,40 @@ const OrderList = () => {
   // Fetch technicians when company changes
   useEffect(() => {
     const fetchTechnicians = async () => {
-      if (draftForm.company) {
-        setLoadingTechnicians(true);
-        try {
-          const res = await technicianApi.getTechnicians({ companyId: draftForm.company });
-          setFilteredTechnicians(res.data.data);
-
-          // Reset technician selection
-          setDraftForm(prev => ({ ...prev, technician: '' }));
-        } catch (err) {
-          setDraftError('Failed to load technicians for this company');
-          console.error(err);
-        } finally {
-          setLoadingTechnicians(false);
-        }
-      } else {
+      if (!draftForm.company?._id) {
         setFilteredTechnicians([]);
+        return;
+      }
+
+      setLoadingTechnicians(true);
+
+      try {
+        const res = await technicianApi.getTechnicians({
+          companyId: draftForm.company._id,
+          isBlocked: false,
+
+        });
+
+        setFilteredTechnicians(res.data.data);
+      } catch (err) {
+        setDraftError('Failed to load technicians for this company');
+        console.error(err);
+      } finally {
+        setLoadingTechnicians(false);
       }
     };
 
     fetchTechnicians();
-  }, [draftForm.company]);
+  }, [draftForm.company?._id]);
+
 
   // Draft Form Handling
   const handleDraftOpen = () => {
     setDraftForm({
       TCRNumber: '',
-      company: '',
-      technician: '',
+      company: null,
+      technician: null,
+      freeInstallation: false,
       customer: {
         name: '',
         contact: { phone: '', alternatePhone: '' },
@@ -266,20 +514,86 @@ const OrderList = () => {
     return { ...obj };
   };
 
-  const handleDraftChange = (e) => {
-    const { name, value } = e.target;
-    const updatedForm = setNestedValue({ ...draftForm }, name, value);
-    setDraftForm(updatedForm);
+  //   const handleDraftChange = (e) => {
+  //   const { name, value, type, checked } = e.target;
 
-    setFormErrors(prev => ({
-      ...prev,
-      [name]: null
-    }));
+  //   if (type === "checkbox") {
+  //     setDraftForm(prev => ({
+  //       ...prev,
+  //       [name]: checked
+  //     }));
+  //     return;
+  //   }
 
-    if (draftError) setDraftError('');
-  };
+  //   if (name === "company") {
+  //     setDraftForm(prev => ({
+  //       ...prev,
+  //       company: value,
+  //       technician: '' // reset only on manual change
+  //     }));
+  //     return;
+  //   }
+
+  //   setDraftForm(prev => ({
+  //     ...prev,
+  //     [name]: value
+  //   }));
+  // };
+
 
   // View/Edit Draft Order
+
+
+  const handleDraftChange = (e) => {
+    const { name, value, type, checked } = e.target;
+
+    if (type === "checkbox") {
+      setDraftForm(prev => ({
+        ...prev,
+        [name]: checked
+      }));
+      return;
+    }
+
+    if (name === "company") {
+      setDraftForm(prev => ({
+        ...prev,
+        company: value, // value might be string ID if from Select, but we'll use Autocomplete
+        technician: null
+      }));
+      return;
+    }
+
+    // ✅ Handle nested fields like customer.name
+    if (name.includes(".")) {
+      const keys = name.split(".");
+
+      setDraftForm(prev => {
+        const updated = { ...prev };
+        let current = updated;
+
+        for (let i = 0; i < keys.length - 1; i++) {
+          current[keys[i]] = { ...current[keys[i]] };
+          current = current[keys[i]];
+        }
+
+        current[keys[keys.length - 1]] = value;
+
+        return updated;
+      });
+
+      return;
+    }
+
+    // normal flat field
+    setDraftForm(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+
+
   const handleViewDraftOpen = (order) => {
     setSelectedOrder(order);
     setOpenViewModal(true);
@@ -289,8 +603,9 @@ const OrderList = () => {
     setSelectedOrder({ ...order, technicianName: order.technician?.name });
     setDraftForm({
       TCRNumber: order.TCRNumber || '',
-      company: order.company?._id || '',
-      technician: order.technician?._id || '',
+      company: order.company || null,
+      technician: order.technician || null,
+      freeInstallation: order.freeInstallation,
       customer: {
         name: order.customer?.name || '',
         contact: {
@@ -314,7 +629,11 @@ const OrderList = () => {
     setCompleteForm({
       products: order.products || [],
       miscellaneousCost: order.miscellaneousCost || 0,
-      discountPercentage: order.discountPercentage || 0
+      discount: {
+        type: order.discount.type, // default
+        value: order.discount.value
+      }
+
     });
     setOpenCompleteModal(true);
   };
@@ -374,83 +693,101 @@ const OrderList = () => {
   const createDraftOrder = async (e) => {
     e.preventDefault();
     if (!validateDraft()) return;
-
+    setFormLoading(true);
+    setDraftError('');
     try {
-      const response = await orderApi.createDraftOrder(draftForm);
-      const newOrder = response.data.data;
-
-      // Calculate total amount for the new order
-      const productTotal = newOrder.products.reduce((sum, product) => {
-        return sum + (product.product?.price || 0) * (product.quantity || 0);
-      }, 0);
-
-      const installationCharge = newOrder.installationCharge || 0;
-      const miscellaneousCost = newOrder.miscellaneousCost || 0;
-      const discountPercentage = newOrder.discountPercentage || 0;
-
-      const subtotal = productTotal + installationCharge + miscellaneousCost;
-      const discountAmount = (subtotal * discountPercentage) / 100;
-      const total = subtotal - discountAmount;
-
-      // Format the new order to match the structure of existing orders
-      const formattedOrder = {
-        ...newOrder,
-        id: newOrder._id,
-        companyName: newOrder.company?.name,
-        technicianName: newOrder.technician?.name,
-        customerName: newOrder.customer?.name,
-        status: newOrder.status,
-        TCRNumber: newOrder.TCRNumber,
-        totalAmount: total
+      const submissionData = {
+        ...draftForm,
+        company: draftForm.company?._id || '',
+        technician: draftForm.technician?._id || ''
       };
 
-      setOrders(prevOrders => [formattedOrder, ...prevOrders]);
+      await orderApi.createDraftOrder(submissionData);
+      // const newOrder = response.data.data;
+
+      // // Calculate total amount for the new order
+      // const productTotal = newOrder.products.reduce((sum, product) => {
+      //   return sum + (product.product?.price || 0) * (product.quantity || 0);
+      // }, 0);
+
+      // const installationCharge = newOrder.installationCharge || 0;
+      // const miscellaneousCost = newOrder.miscellaneousCost || 0;
+      // const discountPercentage = newOrder.discountPercentage || 0;
+
+      // const subtotal = productTotal + installationCharge + miscellaneousCost;
+      // const discountAmount = (subtotal * discountPercentage) / 100;
+      // const total = subtotal - discountAmount;
+
+      // // Format the new order to match the structure of existing orders
+      // const formattedOrder = {
+      //   ...newOrder,
+      //   id: newOrder._id,
+      //   companyName: newOrder.company?.name,
+      //   technicianName: newOrder.technician?.name,
+      //   customerName: newOrder.customer?.name,
+      //   status: newOrder.status,
+      //   TCRNumber: newOrder.TCRNumber,
+      //   totalAmount: total
+      // };
+
+      // setOrders(prevOrders => [formattedOrder, ...prevOrders]);
+
+      fetchData();
       handleClose();
     } catch (err) {
       setDraftError(
         err.response?.data?.error?.message || err.response?.data?.message ||
         'Failed to create draft order. Please try again.'
       );
+    } finally {
+      setFormLoading(false);
     }
   };
 
   const updateDraftOrder = async (e) => {
     e.preventDefault();
     if (!validateDraft() || !selectedOrder) return;
-
+    setFormLoading(true);
+    setDraftError('');
     try {
-      setLoading(true);
-      const response = await orderApi.updateDraftOrder(selectedOrder.id, draftForm);
-      const updatedOrder = response.data.data;
-
-      // Calculate total amount for the updated order
-      const productTotal = updatedOrder.products.reduce((sum, product) => {
-        return sum + (product.product?.price || 0) * (product.quantity || 0);
-      }, 0);
-
-      const installationCharge = updatedOrder.installationCharge || 0;
-      const miscellaneousCost = updatedOrder.miscellaneousCost || 0;
-      const discountPercentage = updatedOrder.discountPercentage || 0;
-
-      const subtotal = productTotal + installationCharge + miscellaneousCost;
-      const discountAmount = (subtotal * discountPercentage) / 100;
-      const total = subtotal - discountAmount;
-
-      // Format the updated order
-      const formattedOrder = {
-        ...updatedOrder,
-        id: updatedOrder._id,
-        companyName: updatedOrder.company?.name,
-        technicianName: updatedOrder.technician?.name,
-        customerName: updatedOrder.customer?.name,
-        status: updatedOrder.status,
-        TCRNumber: updatedOrder.TCRNumber,
-        totalAmount: total
+      const submissionData = {
+        ...draftForm,
+        company: draftForm.company?._id || '',
+        technician: draftForm.technician?._id || ''
       };
+      await orderApi.updateDraftOrder(selectedOrder.id, submissionData);
+      // const updatedOrder = response.data.data;
 
-      setOrders(prevOrders =>
-        prevOrders.map(o => o.id === selectedOrder.id ? formattedOrder : o)
-      );
+      // // Calculate total amount for the updated order
+      // const productTotal = updatedOrder.products.reduce((sum, product) => {
+      //   return sum + (product.product?.price || 0) * (product.quantity || 0);
+      // }, 0);
+
+      // const installationCharge = updatedOrder.installationCharge || 0;
+      // const miscellaneousCost = updatedOrder.miscellaneousCost || 0;
+      // const discountPercentage = updatedOrder.discountPercentage || 0;
+
+      // const subtotal = productTotal + installationCharge + miscellaneousCost;
+      // const discountAmount = (subtotal * discountPercentage) / 100;
+      // const total = subtotal - discountAmount;
+
+      // // Format the updated order
+      // const formattedOrder = {
+      //   ...updatedOrder,
+      //   id: updatedOrder._id,
+      //   companyName: updatedOrder.company?.name,
+      //   technicianName: updatedOrder.technician?.name,
+      //   customerName: updatedOrder.customer?.name,
+      //   status: updatedOrder.status,
+      //   TCRNumber: updatedOrder.TCRNumber,
+      //   totalAmount: total
+      // };
+
+      // setOrders(prevOrders =>
+      //   prevOrders.map(o => o.id === selectedOrder.id ? formattedOrder : o)
+      // );
+
+      fetchData();
 
       handleClose();
     } catch (err) {
@@ -459,53 +796,91 @@ const OrderList = () => {
         'Failed to update draft order. Please try again.'
       );
     } finally {
-      setLoading(false);
+      setFormLoading(false);
     }
   };
 
   const completeOrder = async (e) => {
     e.preventDefault();
-    console.log("before validate")
+    //console.log("before validate")
     if (!validateComplete()) return;
-    console.log("after validate")
-
+    //console.log("after validate")
+    setFormLoading(true);
+    setError('');
     try {
+      // const completionData = {
+      //   ...completeForm,
+      //   status: 'completed'
+      // };
+
       const completionData = {
-        ...completeForm,
+        products: completeForm.products.map(p => ({
+          ...p,
+          product: p.product?._id || p.product
+        })),
+        miscellaneousCost: completeForm.miscellaneousCost,
+        fittingCost: completeForm.fittingCost,
+        discount: completeForm.discount,
         status: 'completed'
       };
+
       const response = await orderApi.completeOrder(selectedOrder.id, completionData);
-      const updatedOrder = response.data.data;
+      // const updatedOrder = response.data.data;
 
-      // Calculate total amount for the completed order
-      const productTotal = updatedOrder.products.reduce((sum, product) => {
-        return sum + (product.product?.price || 0) * (product.quantity || 0);
-      }, 0);
+      // // Calculate total amount for the completed order
+      // const productTotal = updatedOrder.products.reduce((sum, product) => {
+      //   return sum + (product.product?.price || 0) * (product.quantity || 0);
+      // }, 0);
 
-      const installationCharge = updatedOrder.installationCharge || 0;
-      const miscellaneousCost = updatedOrder.miscellaneousCost || 0;
-      const discountPercentage = updatedOrder.discountPercentage || 0;
+      // const installationCharge = updatedOrder.installationCharge || 0;
+      // const miscellaneousCost = updatedOrder.miscellaneousCost || 0;
+      // const discountPercentage = updatedOrder.discountPercentage || 0;
 
-      const subtotal = productTotal + installationCharge + miscellaneousCost;
-      const discountAmount = (subtotal * discountPercentage) / 100;
-      const total = subtotal - discountAmount;
+      // const subtotal = productTotal + installationCharge + miscellaneousCost;
+      // const discountAmount = (subtotal * discountPercentage) / 100;
+      // const total = subtotal - discountAmount;
 
-      // Format the completed order
-      const formattedOrder = {
-        ...updatedOrder,
-        id: updatedOrder._id,
-        companyName: updatedOrder.company?.name,
-        technicianName: updatedOrder.technician?.name,
-        customerName: updatedOrder.customer?.name,
-        status: updatedOrder.status,
-        TCRNumber: updatedOrder.TCRNumber,
-        totalAmount: total
-      };
+      // // Format the completed order
+      // const formattedOrder = {
+      //   ...updatedOrder,
+      //   id: updatedOrder._id,
+      //   companyName: updatedOrder.company?.name,
+      //   technicianName: updatedOrder.technician?.name,
+      //   customerName: updatedOrder.customer?.name,
+      //   status: updatedOrder.status,
+      //   TCRNumber: updatedOrder.TCRNumber,
+      //   totalAmount: total
+      // };
 
-      setOrders(orders.map(o => o.id === selectedOrder.id ? formattedOrder : o));
+      // setOrders(orders.map(o => o.id === selectedOrder.id ? formattedOrder : o));
+
+      fetchData();
       handleClose();
     } catch (err) {
       setError(err.response?.data?.error?.message || err.response?.data?.message || 'Failed to complete order');
+    } finally {
+      setFormLoading(false);
+    }
+  };
+
+
+  const [deleteId, setDeleteId] = useState(null);
+
+  const handleDeleteDraft = async (id) => {
+
+    try {
+      await orderApi.deleteDraft(id);
+
+      // Remove from UI without refetch
+      // setOrders(prev => prev.filter(item => item.id !== row.id));
+
+      setDeleteId(null)
+
+      fetchData();
+
+    } catch (error) {
+      console.error("Delete failed:", error);
+      alert("Failed to delete draft order");
     }
   };
 
@@ -555,13 +930,29 @@ const OrderList = () => {
                   <EditIcon />
                 </IconButton>
               </Tooltip>
+
               <Tooltip title="Complete Order">
                 <IconButton onClick={() => handleCompleteOpen(params.row)} color="primary">
                   <CheckCircleIcon />
                 </IconButton>
               </Tooltip>
+
+              {user.role == "admin" && <Tooltip title="Delete Draft">
+                <IconButton
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    // handleDeleteDraft(params.row);
+                    setDeleteId(params.row.id);
+
+                  }}
+                  color="error"
+                >
+                  <DeleteIcon />
+                </IconButton>
+              </Tooltip>}
             </>
           )}
+
 
           {/* Pending-approval actions */}
           {params.row.status === 'pending-approval' && (
@@ -580,6 +971,19 @@ const OrderList = () => {
                   <PercentIcon />
                 </IconButton>
               </Tooltip>
+              {user.role == "admin" && <Tooltip title="Delete Draft">
+                <IconButton
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    // handleDeleteDraft(params.row);
+                    setDeleteId(params.row.id);
+
+                  }}
+                  color="error"
+                >
+                  <DeleteIcon />
+                </IconButton>
+              </Tooltip>}
               {/* <Tooltip title="Approve Order">
                 <Button
                   variant="contained"
@@ -599,180 +1003,225 @@ const OrderList = () => {
   ];
 
   // Modal Components
-  const renderCreateModal = () => (
-    <Modal open={openCreateModal} onClose={handleClose}>
-      <Box sx={modalStyle}>
-        <Typography variant="h6" mb={2}>Create Draft Order</Typography>
+  const renderCreateModal = () => {
+    return (
+      <Modal open={openCreateModal} onClose={handleClose} sx={modalContainerSx}>
+        <Box sx={modalStyle}>
+          <Typography variant="h6" mb={2}>Create Draft Order</Typography>
 
-        {draftError && (
-          <Alert severity="error" sx={{ mb: 2 }}>
-            {draftError}
-          </Alert>
-        )}
+          {draftError && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {draftError}
+            </Alert>
+          )}
 
-        <form onSubmit={createDraftOrder}>
-          <Grid container spacing={2}>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                label="TCR Number *"
-                name="TCRNumber"
-                value={draftForm.TCRNumber}
-                onChange={handleDraftChange}
-                error={!!formErrors.TCRNumber}
-                helperText={formErrors.TCRNumber}
-              />
-            </Grid>
+          <form onSubmit={createDraftOrder}>
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="TCR Number *"
+                  name="TCRNumber"
+                  value={draftForm.TCRNumber}
+                  onChange={handleDraftChange}
+                  error={!!formErrors.TCRNumber}
+                  helperText={formErrors.TCRNumber}
+                />
+              </Grid>
 
-            <Grid item xs={12} sm={6}>
-              <FormControl fullWidth error={!!formErrors.company}>
-                <InputLabel>Company *</InputLabel>
-                <Select
-                  name="company"
+              <Grid item xs={12} sm={6}>
+                <Autocomplete
+                  options={companies}
+                  getOptionLabel={(option) => option.name || ''}
+                  isOptionEqualToValue={(option, value) => option._id === value._id}
                   value={draftForm.company}
-                  onChange={handleDraftChange}
-                  label="Company *"
-                >
-                  {companies.map(company => (
-                    <MenuItem key={company._id} value={company._id}>
-                      {company.name}
-                    </MenuItem>
-                  ))}
-                </Select>
-                <FormHelperText>{formErrors.company}</FormHelperText>
-              </FormControl>
-            </Grid>
+                  onInputChange={(event, newInputValue) => {
+                    setCompanySearch(newInputValue);
+                  }}
+                  onChange={(event, newValue) => {
+                    setDraftForm({ ...draftForm, company: newValue, technician: null });
+                    setFormErrors({ ...formErrors, company: null });
+                    if (newValue) {
+                      fetchTechniciansDropdown(newValue._id);
+                    } else {
+                      setFilteredTechnicians([]);
+                    }
+                  }}
+                  loading={loadingCompanies}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Company *"
+                      error={!!formErrors.company}
+                      helperText={formErrors.company}
+                      InputProps={{
+                        ...params.InputProps,
+                        endAdornment: (
+                          <>
+                            {loadingCompanies ? <MuiCircularProgress color="inherit" size={20} /> : null}
+                            {params.InputProps.endAdornment}
+                          </>
+                        ),
+                      }}
+                    />
+                  )}
+                />
+              </Grid>
 
-            <Grid item xs={12} sm={6}>
-              <FormControl fullWidth error={!!formErrors.technician}>
-                <InputLabel>Technician *</InputLabel>
-                <Select
-                  name="technician"
+              <Grid item xs={6} sm={6}>
+                <Autocomplete
+                  options={filteredTechnicians}
+                  getOptionLabel={(option) => option.name || ''}
+                  isOptionEqualToValue={(option, value) => option._id === value._id}
                   value={draftForm.technician}
-                  onChange={handleDraftChange}
-                  label="Technician *"
-                  disabled={!draftForm.company || loadingTechnicians}
-                >
-                  {loadingTechnicians ? (
-                    <MenuItem disabled>
-                      <CircularProgress size={20} />
-                    </MenuItem>
-                  ) : (
-                    filteredTechnicians.map(tech => (
-                      <MenuItem key={tech._id} value={tech._id}>
-                        {tech.name}
-                      </MenuItem>
-                    ))
+                  onInputChange={(event, newInputValue) => {
+                    setTechnicianSearch(newInputValue);
+                  }}
+                  onChange={(event, newValue) => {
+                    setDraftForm({ ...draftForm, technician: newValue });
+                    setFormErrors({ ...formErrors, technician: null });
+                  }}
+                  disabled={!draftForm.company}
+                  loading={loadingTechnicians}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Technician *"
+                      error={!!formErrors.technician}
+                      helperText={formErrors.technician}
+                      InputProps={{
+                        ...params.InputProps,
+                        endAdornment: (
+                          <>
+                            {loadingTechnicians ? <MuiCircularProgress color="inherit" size={20} /> : null}
+                            {params.InputProps.endAdornment}
+                          </>
+                        ),
+                      }}
+                    />
                   )}
-                  {!loadingTechnicians && filteredTechnicians.length === 0 && (
-                    <MenuItem disabled>
-                      {draftForm.company ? "No technicians available" : "Select company first"}
-                    </MenuItem>
-                  )}
-                </Select>
-                <FormHelperText>{formErrors.technician}</FormHelperText>
-              </FormControl>
-            </Grid>
+                />
+              </Grid>
+              <Grid item xs={6}>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      name="freeInstallation"
+                      checked={draftForm.freeInstallation}
+                      onChange={handleDraftChange}
+                    />
+                  }
+                  label="Free Installation"
+                />
+              </Grid>
 
-            <Grid item xs={12}>
-              <Typography variant="subtitle2" gutterBottom>
-                Customer Information
-              </Typography>
-              <Grid container spacing={2}>
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    fullWidth
-                    label="Full Name *"
-                    name="customer.name"
-                    value={draftForm.customer.name}
-                    onChange={handleDraftChange}
-                    error={!!formErrors['customer.name']}
-                    helperText={formErrors['customer.name']}
-                  />
-                </Grid>
 
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    fullWidth
-                    label="Primary Phone *"
-                    name="customer.contact.phone"
-                    value={draftForm.customer.contact.phone}
-                    onChange={handleDraftChange}
-                    error={!!formErrors['customer.contact.phone']}
-                    helperText={formErrors['customer.contact.phone']}
-                    inputProps={{ pattern: "[0-9]{10}" }}
-                  />
-                </Grid>
+              <Grid item xs={12}>
+                <Typography variant="subtitle2" gutterBottom>
+                  Customer Information
+                </Typography>
+                <Grid container spacing={2}>
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label="Full Name *"
+                      name="customer.name"
+                      value={draftForm.customer.name}
+                      onChange={handleDraftChange}
+                      error={!!formErrors['customer.name']}
+                      helperText={formErrors['customer.name']}
+                    />
+                  </Grid>
 
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    fullWidth
-                    label="Alternate Phone"
-                    name="customer.contact.alternatePhone"
-                    value={draftForm.customer.contact.alternatePhone}
-                    onChange={handleDraftChange}
-                    inputProps={{ pattern: "[0-9]{10}" }}
-                  />
-                </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label="Primary Phone *"
+                      name="customer.contact.phone"
+                      value={draftForm.customer.contact.phone}
+                      onChange={handleDraftChange}
+                      error={!!formErrors['customer.contact.phone']}
+                      helperText={formErrors['customer.contact.phone']}
+                      inputProps={{ pattern: "[0-9]{10}" }}
+                    />
+                  </Grid>
 
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    fullWidth
-                    label="Street Address"
-                    name="customer.address.street"
-                    value={draftForm.customer.address.street}
-                    onChange={handleDraftChange}
-                  />
-                </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label="Alternate Phone"
+                      name="customer.contact.alternatePhone"
+                      value={draftForm.customer.contact.alternatePhone}
+                      onChange={handleDraftChange}
+                      inputProps={{ pattern: "[0-9]{10}" }}
+                    />
+                  </Grid>
 
-                <Grid item xs={12} sm={4}>
-                  <TextField
-                    fullWidth
-                    label="City"
-                    name="customer.address.city"
-                    value={draftForm.customer.address.city}
-                    onChange={handleDraftChange}
-                  />
-                </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label="Street Address"
+                      name="customer.address.street"
+                      value={draftForm.customer.address.street}
+                      onChange={handleDraftChange}
+                    />
+                  </Grid>
 
-                <Grid item xs={12} sm={4}>
-                  <TextField
-                    fullWidth
-                    label="State"
-                    name="customer.address.state"
-                    value={draftForm.customer.address.state}
-                    onChange={handleDraftChange}
-                  />
-                </Grid>
+                  <Grid item xs={12} sm={4}>
+                    <TextField
+                      fullWidth
+                      label="City"
+                      name="customer.address.city"
+                      value={draftForm.customer.address.city}
+                      onChange={handleDraftChange}
+                    />
+                  </Grid>
 
-                <Grid item xs={12} sm={4}>
-                  <TextField
-                    fullWidth
-                    label="Pincode *"
-                    name="customer.address.pincode"
-                    value={draftForm.customer.address.pincode}
-                    onChange={handleDraftChange}
-                    error={!!formErrors['customer.address.pincode']}
-                    helperText={formErrors['customer.address.pincode']}
-                    inputProps={{ pattern: "[0-9]{6}" }}
-                  />
+                  <Grid item xs={12} sm={4}>
+                    <TextField
+                      fullWidth
+                      label="State"
+                      name="customer.address.state"
+                      value={draftForm.customer.address.state}
+                      onChange={handleDraftChange}
+                    />
+                  </Grid>
+
+                  <Grid item xs={12} sm={4}>
+                    <TextField
+                      fullWidth
+                      label="Pincode *"
+                      name="customer.address.pincode"
+                      value={draftForm.customer.address.pincode}
+                      onChange={handleDraftChange}
+                      error={!!formErrors['customer.address.pincode']}
+                      helperText={formErrors['customer.address.pincode']}
+                      inputProps={{ pattern: "[0-9]{6}" }}
+                    />
+                  </Grid>
                 </Grid>
               </Grid>
-            </Grid>
 
-            <Grid item xs={12}>
-              <Button type="submit" variant="contained" fullWidth>
-                Create Draft
-              </Button>
+              <Grid item xs={12}>
+                <Button
+                  type="submit"
+                  variant="contained"
+                  fullWidth
+                  disabled={formLoading}
+                  startIcon={formLoading ? <CircularProgress size={20} color="inherit" /> : null}
+                >
+                  {formLoading ? "Creating..." : "Create Draft"}
+                </Button>
+              </Grid>
             </Grid>
-          </Grid>
-        </form>
-      </Box>
-    </Modal>
-  );
+          </form>
+        </Box>
+      </Modal>
+    );
+  };
 
   const renderEditModal = () => (
-    <Modal open={openEditModal} onClose={handleClose}>
+    <Modal open={openEditModal} onClose={handleClose} sx={modalContainerSx}>
       <Box sx={modalStyle}>
         <Typography variant="h6" mb={2}>Edit Draft Order</Typography>
 
@@ -797,53 +1246,85 @@ const OrderList = () => {
             </Grid>
 
             <Grid item xs={12} sm={6}>
-              <FormControl fullWidth error={!!formErrors.company}>
-                <InputLabel>Company *</InputLabel>
-                <Select
-                  name="company"
-                  value={draftForm.company}
-                  onChange={handleDraftChange}
-                  label="Company *"
-                >
-                  {companies.map(company => (
-                    <MenuItem key={company._id} value={company._id}>
-                      {company.name}
-                    </MenuItem>
-                  ))}
-                </Select>
-                <FormHelperText>{formErrors.company}</FormHelperText>
-              </FormControl>
+              <Autocomplete
+                options={companies}
+                getOptionLabel={(option) => option.name || ''}
+                isOptionEqualToValue={(option, value) => option._id === value._id}
+                value={draftForm.company}
+                onInputChange={(event, newInputValue) => {
+                  setCompanySearch(newInputValue);
+                }}
+                onChange={(event, newValue) => {
+                  setDraftForm({ ...draftForm, company: newValue, technician: null });
+                  setFormErrors({ ...formErrors, company: null });
+                }}
+                loading={loadingCompanies}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Company *"
+                    error={!!formErrors.company}
+                    helperText={formErrors.company}
+                    InputProps={{
+                      ...params.InputProps,
+                      endAdornment: (
+                        <>
+                          {loadingCompanies ? <MuiCircularProgress color="inherit" size={20} /> : null}
+                          {params.InputProps.endAdornment}
+                        </>
+                      ),
+                    }}
+                  />
+                )}
+              />
             </Grid>
 
             <Grid item xs={12} sm={6}>
-              <FormControl fullWidth error={!!formErrors.technician}>
-                <InputLabel>Technician *</InputLabel>
-                <Select
-                  name="technician"
-                  value={draftForm.technician}
-                  onChange={handleDraftChange}
-                  label="Technician *"
-                  disabled={!draftForm.company || loadingTechnicians}
-                >
-                  {loadingTechnicians ? (
-                    <MenuItem disabled>
-                      <CircularProgress size={20} />
-                    </MenuItem>
-                  ) : (
-                    filteredTechnicians.map(tech => (
-                      <MenuItem key={tech._id} value={tech._id}>
-                        {tech.name}
-                      </MenuItem>
-                    ))
-                  )}
-                  {!loadingTechnicians && filteredTechnicians.length === 0 && (
-                    <MenuItem disabled>
-                      {draftForm.company ? "No technicians available" : "Select company first"}
-                    </MenuItem>
-                  )}
-                </Select>
-                <FormHelperText>{formErrors.technician}</FormHelperText>
-              </FormControl>
+              <Autocomplete
+                options={filteredTechnicians}
+                getOptionLabel={(option) => option.name || ''}
+                isOptionEqualToValue={(option, value) => option._id === value._id}
+                value={draftForm.technician}
+                onInputChange={(event, newInputValue) => {
+                  setTechnicianSearch(newInputValue);
+                }}
+                onChange={(event, newValue) => {
+                  setDraftForm({ ...draftForm, technician: newValue });
+                  setFormErrors({ ...formErrors, technician: null });
+                }}
+                disabled={!draftForm.company}
+                loading={loadingTechnicians}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Technician *"
+                    error={!!formErrors.technician}
+                    helperText={formErrors.technician}
+                    InputProps={{
+                      ...params.InputProps,
+                      endAdornment: (
+                        <>
+                          {loadingTechnicians ? <MuiCircularProgress color="inherit" size={20} /> : null}
+                          {params.InputProps.endAdornment}
+                        </>
+                      ),
+                    }}
+                  />
+                )}
+              />
+            </Grid>
+
+            <Grid item xs={6}>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    name="freeInstallation"
+                    checked={draftForm.freeInstallation}
+                    onChange={handleDraftChange}
+                  />
+                }
+                label="Free Installation"
+              />
             </Grid>
 
             <Grid item xs={12}>
@@ -933,8 +1414,14 @@ const OrderList = () => {
             </Grid>
 
             <Grid item xs={12}>
-              <Button type="submit" variant="contained" fullWidth>
-                Update Draft
+              <Button
+                type="submit"
+                variant="contained"
+                fullWidth
+                disabled={formLoading}
+                startIcon={formLoading ? <CircularProgress size={20} color="inherit" /> : null}
+              >
+                {formLoading ? "Updating..." : "Update Draft"}
               </Button>
             </Grid>
           </Grid>
@@ -943,429 +1430,341 @@ const OrderList = () => {
     </Modal>
   );
 
-  // const renderViewModal = () => (
-  //   <Modal open={openViewModal} onClose={handleClose}>
-  //     <Box sx={modalStyle}>
-  //       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-  //         <Typography variant="h6">Order Details</Typography>
-  //         <IconButton onClick={handleClose} size="small">
-  //           <CloseIcon />
-  //         </IconButton>
-  //       </Box>
 
-  //       {selectedOrder && (
-  //         <Grid container spacing={2} sx={{ mt: 1 }}>
-  //           <Grid item xs={12} md={6}>
-  //             <Typography variant="subtitle2">Order Information</Typography>
-  //             <Divider sx={{ my: 1 }} />
-  //             <Grid container spacing={1}>
-  //               <Grid item xs={4}><Typography variant="body2"><strong>TCR:</strong></Typography></Grid>
-  //               <Grid item xs={8}><Typography>{selectedOrder.TCRNumber}</Typography></Grid>
-
-  //               <Grid item xs={4}><Typography variant="body2"><strong>Status:</strong></Typography></Grid>
-  //               <Grid item xs={8}>
-  //                 <Chip
-  //                   label={selectedOrder.status}
-  //                   color={
-  //                     selectedOrder.status === 'completed' ? 'success' :
-  //                       selectedOrder.status === 'pending-approval' ? 'warning' :
-  //                         selectedOrder.status === 'approved' ? 'primary' : 'info'
-  //                   }
-  //                   size="small"
-  //                 />
-  //               </Grid>
-
-  //               <Grid item xs={4}><Typography variant="body2"><strong>Company:</strong></Typography></Grid>
-  //               <Grid item xs={8}><Typography>{selectedOrder.companyName}</Typography></Grid>
-
-  //               <Grid item xs={4}><Typography variant="body2"><strong>Technician:</strong></Typography></Grid>
-  //               <Grid item xs={8}><Typography>{selectedOrder.technicianName}</Typography></Grid>
-
-  //               <Grid item xs={4}><Typography variant="body2"><strong>Installation:</strong></Typography></Grid>
-  //               <Grid item xs={8}><Typography>₹{selectedOrder.installationCharge?.toFixed(2) || '0.00'}</Typography></Grid>
-
-  //               <Grid item xs={4}><Typography variant="body2"><strong>Total:</strong></Typography></Grid>
-  //               <Grid item xs={8}><Typography variant="body1" fontWeight="bold">₹{selectedOrder.totalAmount?.toFixed(2) || '0.00'}</Typography></Grid>
-  //             </Grid>
-  //           </Grid>
-
-  //           <Grid item xs={12} md={6}>
-  //             <Typography variant="subtitle2">Customer Information</Typography>
-  //             <Divider sx={{ my: 1 }} />
-  //             <Grid container spacing={1}>
-  //               <Grid item xs={4}><Typography variant="body2"><strong>Name:</strong></Typography></Grid>
-  //               <Grid item xs={8}><Typography>{selectedOrder.customerName}</Typography></Grid>
-
-  //               <Grid item xs={4}><Typography variant="body2"><strong>Phone:</strong></Typography></Grid>
-  //               <Grid item xs={8}><Typography>{selectedOrder.customer?.contact?.phone}</Typography></Grid>
-
-  //               <Grid item xs={4}><Typography variant="body2"><strong>Alt Phone:</strong></Typography></Grid>
-  //               <Grid item xs={8}><Typography>{selectedOrder.customer?.contact?.alternatePhone || 'N/A'}</Typography></Grid>
-
-  //               <Grid item xs={4}><Typography variant="body2"><strong>Address:</strong></Typography></Grid>
-  //               <Grid item xs={8}>
-  //                 <Typography>
-  //                   {selectedOrder.customer?.address?.street || 'N/A'},<br />
-  //                   {selectedOrder.customer?.address?.city || 'N/A'},<br />
-  //                   {selectedOrder.customer?.address?.state || 'N/A'} - {selectedOrder.customer?.address?.pincode}
-  //                 </Typography>
-  //               </Grid>
-  //             </Grid>
-  //           </Grid>
-
-  //           {selectedOrder.products?.length > 0 && (
-  //             <Grid item xs={12}>
-  //               <Typography variant="subtitle2">Products</Typography>
-  //               <Divider sx={{ my: 1 }} />
-  //               <Grid container>
-  //                 {selectedOrder.products.map((item, index) => (
-  //                   <Grid container key={index} sx={{ py: 1, borderBottom: '1px solid rgba(0,0,0,0.12)' }}>
-  //                     <Grid item xs={7}>
-  //                       <Typography>
-  //                         {item.product?.name || 'Product'}
-  //                         {item.product?.price && ` (₹${item.product.price})`}
-  //                       </Typography>
-  //                     </Grid>
-  //                     <Grid item xs={2}>
-  //                       <Typography>Qty: {item.quantity}</Typography>
-  //                     </Grid>
-  //                     <Grid item xs={3} textAlign="right">
-  //                       <Typography>
-  //                         ₹{(item.product?.price || 0) * (item.quantity || 0)}
-  //                       </Typography>
-  //                     </Grid>
-  //                   </Grid>
-  //                 ))}
-  //               </Grid>
-  //             </Grid>
-  //           )}
-
-  //           <Grid item xs={12}>
-  //             <Typography variant="subtitle2">Financial Summary</Typography>
-  //             <Divider sx={{ my: 1 }} />
-  //             <Grid container>
-  //               <Grid item xs={9}><Typography>Product Total:</Typography></Grid>
-  //               <Grid item xs={3} textAlign="right">
-  //                 <Typography>₹{selectedOrder.products?.reduce((sum, p) => sum + (p.product?.price || 0) * (p.quantity || 0), 0).toFixed(2)}</Typography>
-  //               </Grid>
-
-  //               <Grid item xs={9}><Typography>Installation Charge:</Typography></Grid>
-  //               <Grid item xs={3} textAlign="right">
-  //                 <Typography>₹{selectedOrder.installationCharge?.toFixed(2) || '0.00'}</Typography>
-  //               </Grid>
-
-  //               <Grid item xs={9}><Typography>Miscellaneous Costs:</Typography></Grid>
-  //               <Grid item xs={3} textAlign="right">
-  //                 <Typography>₹{selectedOrder.miscellaneousCost?.toFixed(2) || '0.00'}</Typography>
-  //               </Grid>
-
-  //               <Grid item xs={9}><Typography>Discount ({selectedOrder.discountPercentage || 0}%):</Typography></Grid>
-  //               <Grid item xs={3} textAlign="right">
-  //                 <Typography color="error">-₹{(
-  //                   ((selectedOrder.products?.reduce((sum, p) => sum + (p.product?.price || 0) * (p.quantity || 0), 0)
-  //                     + (selectedOrder.installationCharge || 0)
-  //                     + (selectedOrder.miscellaneousCost || 0))
-  //                     * (selectedOrder.discountPercentage || 0) / 100
-  //                   ).toFixed(2))}</Typography>
-  //               </Grid>
-
-  //               <Grid item xs={9}><Typography variant="body1" fontWeight="bold">Total Amount:</Typography></Grid>
-  //               <Grid item xs={3} textAlign="right">
-  //                 <Typography variant="body1" fontWeight="bold">₹{selectedOrder.totalAmount?.toFixed(2) || '0.00'}</Typography>
-  //               </Grid>
-  //             </Grid>
-  //           </Grid>
-
-  //           <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, mt: 2 }}>
-  //             <Button variant="outlined" onClick={handleClose}>
-  //               Close
-  //             </Button>
-
-  //             {selectedOrder.status === 'draft' && (
-  //               <Button
-  //                 variant="contained"
-  //                 onClick={() => {
-  //                   handleClose();
-  //                   handleEditDraftOpen(selectedOrder);
-  //                 }}
-  //               >
-  //                 Edit Order
-  //               </Button>
-  //             )}
-
-  //             {selectedOrder.status === 'pending-approval' && (
-  //               <Button
-  //                 variant="contained"
-  //                 color="success"
-  //                 onClick={() => handleApproveOrder(selectedOrder.id)}
-  //               >
-  //                 Approve Order
-  //               </Button>
-  //             )}
-  //           </Grid>
-  //         </Grid>
-  //       )}
-  //     </Box>
-  //   </Modal>
-  // );
 
   const renderViewModal = () => {
-  // Calculate discount amount
-  const discountAmount = selectedOrder ? 
-    calculateDiscountAmount(selectedOrder) : 
-    0;
-  
-  return (
-    <Modal open={openViewModal} onClose={handleClose}>
-      <Box sx={modalStyle}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Typography variant="h6">Order Details</Typography>
-          <IconButton onClick={handleClose} size="small">
-            <CloseIcon />
-          </IconButton>
-        </Box>
+    if (!selectedOrder) return null;
 
-        {selectedOrder && (
-          <Grid container spacing={2} sx={{ mt: 1 }}>
-            <Grid item xs={12} md={6}>
-              <Typography variant="subtitle2">Order Information</Typography>
-              <Divider sx={{ my: 1 }} />
-              <Grid container spacing={1}>
-                <Grid item xs={4}><Typography variant="body2"><strong>TCR:</strong></Typography></Grid>
-                <Grid item xs={8}><Typography>{selectedOrder.TCRNumber}</Typography></Grid>
+    /* ================= CALCULATIONS ================= */
 
-                <Grid item xs={4}><Typography variant="body2"><strong>Status:</strong></Typography></Grid>
-                <Grid item xs={8}>
-                  <Chip
-                    label={selectedOrder.status}
-                    color={
-                      selectedOrder.status === 'completed' ? 'success' :
-                        selectedOrder.status === 'pending-approval' ? 'warning' :
-                          'info'
-                    }
-                    size="small"
-                  />
-                </Grid>
+    // Products ONLY
+    const productTotal =
+      selectedOrder.products?.reduce(
+        (sum, item) =>
+          sum +
+          (Number(item.salePrice ?? item.product?.price) || 0) *
+          (Number(item.quantity) || 0),
+        0
+      ) || 0;
 
-                <Grid item xs={4}><Typography variant="body2"><strong>Company:</strong></Typography></Grid>
-                <Grid item xs={8}><Typography>{selectedOrder.companyName}</Typography></Grid>
+    const installationCharge =
+      Number(selectedOrder.installationCharge) || 0;
 
-                <Grid item xs={4}><Typography variant="body2"><strong>Technician:</strong></Typography></Grid>
-                <Grid item xs={8}><Typography>{selectedOrder.technicianName}</Typography></Grid>
+    const fittingCharge =
+      Number(selectedOrder.fittingCost) || 0;
 
-                <Grid item xs={4}><Typography variant="body2"><strong>Installation:</strong></Typography></Grid>
-                <Grid item xs={8}><Typography>₹{selectedOrder.installationCharge?.toFixed(2) || '0.00'}</Typography></Grid>
+    const miscCost =
+      Number(selectedOrder.miscellaneousCost) || 0;
 
-                <Grid item xs={4}><Typography variant="body2"><strong>Total:</strong></Typography></Grid>
-                <Grid item xs={8}><Typography variant="body1" fontWeight="bold">₹{selectedOrder.totalAmount?.toFixed(2) || '0.00'}</Typography></Grid>
-              </Grid>
-            </Grid>
+    const serviceRate =
+      Number(selectedOrder.technician?.serviceRate) || 0;
 
-            <Grid item xs={12} md={6}>
-              <Typography variant="subtitle2">Customer Information</Typography>
-              <Divider sx={{ my: 1 }} />
-              <Grid container spacing={1}>
-                <Grid item xs={4}><Typography variant="body2"><strong>Name:</strong></Typography></Grid>
-                <Grid item xs={8}><Typography>{selectedOrder.customerName}</Typography></Grid>
+    /* ---- GROSS SUBTOTAL (EXACT BACKEND MATCH) ---- */
+    const grossSubtotal =
+      productTotal +
+      installationCharge +
+      miscCost +
+      fittingCharge;
 
-                <Grid item xs={4}><Typography variant="body2"><strong>Phone:</strong></Typography></Grid>
-                <Grid item xs={8}><Typography>{selectedOrder.customer?.contact?.phone}</Typography></Grid>
+    /* ================= DISCOUNT ================= */
 
-                <Grid item xs={4}><Typography variant="body2"><strong>Alt Phone:</strong></Typography></Grid>
-                <Grid item xs={8}><Typography>{selectedOrder.customer?.contact?.alternatePhone || 'N/A'}</Typography></Grid>
+    let totalDiscount = 0;
+    let discountLabel = "0";
 
-                <Grid item xs={4}><Typography variant="body2"><strong>Address:</strong></Typography></Grid>
-                <Grid item xs={8}>
-                  <Typography>
-                    {selectedOrder.customer?.address?.street || 'N/A'},<br />
-                    {selectedOrder.customer?.address?.city || 'N/A'},<br />
-                    {selectedOrder.customer?.address?.state || 'N/A'} - {selectedOrder.customer?.address?.pincode}
-                  </Typography>
-                </Grid>
-              </Grid>
-            </Grid>
+    if (selectedOrder.discount?.type === "percentage") {
+      const pct = Math.max(
+        0,
+        Math.min(100, Number(selectedOrder.discount?.value) || 0)
+      );
 
-            {selectedOrder.products?.length > 0 && (
-              <Grid item xs={12}>
-                <Typography variant="subtitle2">Products</Typography>
-                <Divider sx={{ my: 1 }} />
-                <Grid container>
-                  {selectedOrder.products.map((item, index) => (
-                    <Grid container key={index} sx={{ py: 1, borderBottom: '1px solid rgba(0,0,0,0.12)' }}>
-                      <Grid item xs={7}>
-                        <Typography>
-                          {item.product?.name || 'Product'}
-                          {item.product?.price && ` (₹${item.product.price})`}
-                        </Typography>
-                      </Grid>
-                      <Grid item xs={2}>
-                        <Typography>Qty: {item.quantity}</Typography>
-                      </Grid>
-                      <Grid item xs={3} textAlign="right">
-                        <Typography>
-                          ₹{(item.product?.price || 0) * (item.quantity || 0)}
-                        </Typography>
-                      </Grid>
-                    </Grid>
-                  ))}
-                </Grid>
-              </Grid>
-            )}
+      totalDiscount = grossSubtotal * (pct / 100);
+      discountLabel = `${pct}%`;
+    }
 
-            {/* Discount Distribution Section */}
-            {selectedOrder.discountPercentage > 0 && (
-              <Grid item xs={12}>
-                <Typography variant="subtitle2">Discount Details</Typography>
-                <Divider sx={{ my: 1 }} />
-                <Grid container spacing={1}>
-                  <Grid item xs={12} sm={4}>
-                    <Typography variant="body2">
-                      <strong>Discount Percentage:</strong> {selectedOrder.discountPercentage}%
-                    </Typography>
-                  </Grid>
-                  <Grid item xs={12} sm={4}>
-                    <Typography variant="body2">
-                      <strong>Discount Amount:</strong> ₹{discountAmount.toFixed(2)}
-                    </Typography>
-                  </Grid>
-                  
-                  {selectedOrder.discountApproved === 'approved' && selectedOrder.discountSplit && (
-                    <>
-                      <Grid item xs={12} sm={4}>
-                        <Typography variant="body2">
-                          <strong>Status:</strong> Approved
-                        </Typography>
-                      </Grid>
-                      <Grid item xs={12} sm={4}>
-                        <Typography variant="body2">
-                          <strong>Owner Responsibility:</strong> {selectedOrder.discountSplit.ownerPercentage}%
-                        </Typography>
-                      </Grid>
-                      <Grid item xs={12} sm={4}>
-                        <Typography variant="body2">
-                          <strong>Technician Responsibility:</strong> {selectedOrder.discountSplit.technicianPercentage}%
-                        </Typography>
-                      </Grid>
-                      <Grid item xs={12} sm={4}>
-                        <Typography variant="body2">
-                          <strong>Technician Liability:</strong> ₹{(discountAmount * (selectedOrder.discountSplit.technicianPercentage / 100)).toFixed(2)}
-                        </Typography>
-                      </Grid>
-                    </>
-                  )}
-                  
-                  {selectedOrder.discountApproved === 'rejected' && (
-                    <Grid item xs={12}>
-                      <Typography variant="body2" color="error">
-                        <strong>Status:</strong> Rejected
-                      </Typography>
-                    </Grid>
-                  )}
-                  
-                  {selectedOrder.discountApproved === 'pending' && (
-                    <Grid item xs={12}>
-                      <Typography variant="body2" color="warning">
-                        <strong>Status:</strong> Pending Approval
-                      </Typography>
-                    </Grid>
-                  )}
-                </Grid>
-              </Grid>
-            )}
+    if (selectedOrder.discount?.type === "amount") {
+      const amount = Number(selectedOrder.discount?.value) || 0;
+
+      totalDiscount = Math.min(grossSubtotal, amount);
+      discountLabel = `₹${amount}`;
+    }
+
+    /* ================= SPLIT ================= */
+
+    const technicianSharePercentage =
+      Math.min(
+        100,
+        Math.max(
+          0,
+          Number(selectedOrder.discountSplit?.technicianPercentage) || 0
+        )
+      );
+
+    const ownerSharePercentage =
+      100 - technicianSharePercentage;
+
+    const technicianDiscountShare =
+      totalDiscount * (technicianSharePercentage / 100);
+
+    const ownerDiscountShare =
+      totalDiscount * (ownerSharePercentage / 100);
+
+    const finalAmount = grossSubtotal - totalDiscount;
+
+
+    /* ================= UI ================= */
+
+    return (
+      <Modal open={openViewModal} onClose={handleClose} sx={modalContainerSx}>
+        <Box
+          sx={{
+            ...modalStyle,
+            maxHeight: "92vh",
+            overflowY: "auto",
+            p: 3
+          }}
+        >
+          {/* ================= HEADER ================= */}
+          <Box display="flex" justifyContent="space-between" mb={2}>
+            <Typography variant="h5" fontWeight="bold">
+              Order Overview
+            </Typography>
+            <IconButton onClick={handleClose}>
+              <CloseIcon />
+            </IconButton>
+          </Box>
+
+          <Grid container spacing={3}>
 
             <Grid item xs={12}>
-              <Typography variant="subtitle2">Financial Summary</Typography>
-              <Divider sx={{ my: 1 }} />
-              <Grid container>
-                <Grid item xs={9}><Typography>Product Total:</Typography></Grid>
-                <Grid item xs={3} textAlign="right">
-                  <Typography>₹{selectedOrder.products?.reduce((sum, p) => sum + (p.product?.price || 0) * (p.quantity || 0), 0).toFixed(2)}</Typography>
-                </Grid>
+              <Accordion defaultExpanded>
+                <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                  <Typography fontWeight="bold">
+                    Order & Customer Details
+                  </Typography>
+                </AccordionSummary>
 
-                <Grid item xs={9}><Typography>Installation Charge:</Typography></Grid>
-                <Grid item xs={3} textAlign="right">
-                  <Typography>₹{selectedOrder.installationCharge?.toFixed(2) || '0.00'}</Typography>
-                </Grid>
+                <AccordionDetails>
+                  <Grid container spacing={3}>
 
-                <Grid item xs={9}><Typography>Miscellaneous Costs:</Typography></Grid>
-                <Grid item xs={3} textAlign="right">
-                  <Typography>₹{selectedOrder.miscellaneousCost?.toFixed(2) || '0.00'}</Typography>
-                </Grid>
-
-                {selectedOrder.discountPercentage > 0 && (
-                  <>
-                    <Grid item xs={9}><Typography>Discount ({selectedOrder.discountPercentage || 0}%):</Typography></Grid>
-                    <Grid item xs={3} textAlign="right">
-                      <Typography color="error">-₹{discountAmount.toFixed(2)}</Typography>
-                    </Grid>
-                  </>
-                )}
-
-                <Grid item xs={9}><Typography variant="body1" fontWeight="bold">Total Amount:</Typography></Grid>
-                <Grid item xs={3} textAlign="right">
-                  <Typography variant="body1" fontWeight="bold">₹{selectedOrder.totalAmount?.toFixed(2) || '0.00'}</Typography>
-                </Grid>
-
-                {selectedOrder.technicianCut !== undefined && (
-                  <>
-                    <Grid item xs={9}><Typography>Technician's Cut:</Typography></Grid>
-                    <Grid item xs={3} textAlign="right">
-                      <Typography color={selectedOrder.technicianCut < 0 ? "error" : "inherit"}>
-                        ₹{selectedOrder.technicianCut?.toFixed(2) || '0.00'}
+                    {/* ORDER INFO */}
+                    <Grid item xs={12} md={6}>
+                      <Typography fontWeight="600" mb={1}>
+                        Order Info
                       </Typography>
-                    </Grid>
-                  </>
-                )}
 
-                {selectedOrder.outstandingAmount !== undefined && selectedOrder.outstandingAmount > 0 && (
-                  <>
-                    <Grid item xs={9}><Typography>Outstanding Amount:</Typography></Grid>
-                    <Grid item xs={3} textAlign="right">
-                      <Typography color="error" fontWeight="bold">
-                        ₹{selectedOrder.outstandingAmount?.toFixed(2)}
-                      </Typography>
+                      <InfoRow label="TCR Number" value={selectedOrder.TCRNumber} />
+                      <InfoRow label="Status" value={selectedOrder.status} />
+                      <InfoRow label="Order Date"
+                        value={new Date(selectedOrder.orderDate).toLocaleDateString()}
+                      />
+                      <InfoRow label="Free Installation"
+                        value={selectedOrder.freeInstallation ? "Yes" : "No"}
+                      />
                     </Grid>
-                  </>
-                )}
-              </Grid>
+
+                    {/* CUSTOMER INFO */}
+                    <Grid item xs={12} md={6}>
+                      <Typography fontWeight="600" mb={1}>
+                        Customer Info
+                      </Typography>
+
+                      <InfoRow label="Name" value={selectedOrder.customer?.name} />
+                      <InfoRow label="Phone" value={selectedOrder.customer?.contact?.phone} />
+                      <InfoRow
+                        label="Address"
+                        value={`${selectedOrder.customer?.address?.street}, 
+            ${selectedOrder.customer?.address?.city}, 
+            ${selectedOrder.customer?.address?.state} - 
+            ${selectedOrder.customer?.address?.pincode}`}
+                      />
+                    </Grid>
+
+                    {/* TECHNICIAN INFO */}
+                    <Grid item xs={12} md={6}>
+                      <Typography fontWeight="600" mb={1}>
+                        Technician Info
+                      </Typography>
+
+                      <InfoRow label="Name" value={selectedOrder.technician?.name} />
+                      <InfoRow label="Phone" value={selectedOrder.technician?.phone} />
+                      <InfoRow label="Service Rate" value={`₹${selectedOrder.technician?.serviceRate}`} />
+                      <InfoRow label="Misc. Share" value={`${selectedOrder.technician?.miscShare}%`} />
+
+                    </Grid>
+
+                    {/* COMPANY INFO */}
+                    <Grid item xs={12} md={6}>
+                      <Typography fontWeight="600" mb={1}>
+                        Company Info
+                      </Typography>
+
+                      <InfoRow label="Company" value={selectedOrder.company?.name} />
+                      <InfoRow label="Base Installation"
+                        value={`₹${selectedOrder.company?.installationCharge}`}
+                      />
+                    </Grid>
+
+                  </Grid>
+                </AccordionDetails>
+              </Accordion>
             </Grid>
 
-            <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, mt: 2 }}>
-              <Button variant="outlined" onClick={handleClose}>
-                Close
-              </Button>
 
-              {selectedOrder.status === 'draft' && (
-                <Button
-                  variant="contained"
-                  onClick={() => {
-                    handleClose();
-                    handleEditDraftOpen(selectedOrder);
+
+            {/* ================= PRODUCTS ================= */}
+            <Grid item xs={12}>
+              <Typography variant="h6">Products</Typography>
+              <Divider sx={{ mb: 1 }} />
+
+              {selectedOrder.products?.map((item, i) => (
+                <Box
+                  key={i}
+                  sx={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    py: 0.5
                   }}
                 >
-                  Edit Order
-                </Button>
-              )}
+                  <Typography>
+                    {item.product?.name} × {item.quantity}
+                  </Typography>
+                  <Typography fontWeight="500">
+                    ₹{(
+                      (Number(item.salePrice ?? item.product?.price) || 0) *
+                      (Number(item.quantity) || 0)
+                    ).toFixed(2)}
+                  </Typography>
+                </Box>
+              ))}
 
-              {/* {selectedOrder.status === 'pending-approval' && (
-                <Button
-                  variant="contained"
-                  color="success"
-                  onClick={() => handleApproveOrder(selectedOrder.id)}
-                >
-                  Approve Order
-                </Button>
-              )} */}
+              <Divider sx={{ my: 1 }} />
+
+              <Box display="flex" justifyContent="space-between">
+                <Typography fontWeight="bold">Product Total</Typography>
+                <Typography fontWeight="bold">
+                  ₹{productTotal.toFixed(2)}
+                </Typography>
+              </Box>
             </Grid>
+
+            {/* ================= REVENUE BLOCK ================= */}
+            <Grid item xs={12} md={6}>
+              <Box sx={{ p: 2, bgcolor: "#f5f7fa", borderRadius: 2 }}>
+                <Typography fontWeight="bold" mb={1}>
+                  Revenue Breakdown
+                </Typography>
+
+                <FinanceRow label="Product Total" value={productTotal} />
+                <FinanceRow label="Installation Charge" value={installationCharge} />
+                <FinanceRow label="Miscellaneous Cost" value={miscCost} />
+                <FinanceRow label="Fitting Cost" value={fittingCharge} />
+
+                <Divider sx={{ my: 1 }} />
+
+                <FinanceRow
+                  label="Gross Subtotal"
+                  value={grossSubtotal}
+                  bold
+                />
+              </Box>
+            </Grid>
+
+
+            {/* ================= DISCOUNT BLOCK ================= */}
+            {/* ================= DISCOUNT BLOCK ================= */}
+            <Grid item xs={12} md={6}>
+              <Box sx={{ p: 2, bgcolor: "#fff4f4", borderRadius: 2 }}>
+                <Typography fontWeight="bold" mb={1}>
+                  Discount Distribution
+                </Typography>
+
+                <FinanceRow
+                  label={`Overall Discount (${discountLabel})`}
+                  value={-totalDiscount}
+                  bold
+                />
+
+                <Divider sx={{ my: 1 }} />
+
+                <Typography variant="body2" fontWeight="600">
+                  Technician Pays ({technicianSharePercentage}%)
+                </Typography>
+                <FinanceRow
+                  label="Technician Share"
+                  value={-technicianDiscountShare}
+                />
+
+                <Divider sx={{ my: 1 }} />
+
+                <Typography variant="body2" fontWeight="600">
+                  Owner Pays ({ownerSharePercentage}%)
+                </Typography>
+                <FinanceRow
+                  label="Owner Share"
+                  value={-ownerDiscountShare}
+                />
+              </Box>
+            </Grid>
+
+
+            {/* ================= FINAL SUMMARY ================= */}
+            <Grid item xs={12}>
+              <Box
+                sx={{
+                  p: 3,
+                  bgcolor: "#e8f5e9",
+                  borderRadius: 2
+                }}
+              >
+                <Typography variant="h6" fontWeight="bold" mb={1}>
+                  Final Settlement
+                </Typography>
+
+                <FinanceRow
+                  label="Final Amount After Discount"
+                  value={finalAmount}
+                  bold
+                />
+
+                <FinanceRow
+                  label="Technician Cut"
+                  value={selectedOrder.technicianCut}
+                />
+
+                <FinanceRow
+                  label="Company Cut"
+                  value={selectedOrder.companyCut}
+                />
+
+                {selectedOrder.outstandingAmount > 0 && (
+                  <FinanceRow
+                    label="Outstanding"
+                    value={selectedOrder.outstandingAmount}
+                    error
+                  />
+                )}
+              </Box>
+            </Grid>
+
+            {/* ================= CLOSE ================= */}
+            <Grid item xs={12} textAlign="right">
+              <Button variant="contained" onClick={handleClose}>
+                Close
+              </Button>
+            </Grid>
+
           </Grid>
-        )}
-      </Box>
-    </Modal>
-  );
-};
+        </Box>
+      </Modal>
+    );
+  };
+
+
+
+
 
   const renderCompleteModal = () => (
-    <Modal open={openCompleteModal} onClose={handleClose}>
+    <Modal open={openCompleteModal} onClose={handleClose} sx={modalContainerSx}>
       <Box sx={modalStyle}>
         <Typography variant="h6" mb={2}>Complete Order</Typography>
         <form onSubmit={completeOrder}>
@@ -1375,19 +1774,43 @@ const OrderList = () => {
               {completeForm.products.map((product, index) => (
                 <Grid container spacing={2} key={index} sx={{ mt: 1 }}>
                   <Grid item xs={6}>
-                    <FormControl fullWidth>
-                      <InputLabel>Product</InputLabel>
-                      <Select
-                        value={product.product}
-                        onChange={(e) => handleProductChange(index, 'product', e.target.value)}
-                      >
-                        {products.map(p => (
-                          <MenuItem key={p._id} value={p._id}>
-                            {p.name} (₹{p.price})
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
+                    <Autocomplete
+                      options={products}
+                      getOptionLabel={(option) => {
+                        if (option) {
+                          const label = option.name || '';
+                          const price = (option.price || 0);
+                          return `${label} (Price: ₹${price})`;
+                        } else {
+                          return '';
+                        }
+
+                      }}
+                      isOptionEqualToValue={(option, value) => option._id === value._id}
+                      value={product.product}
+                      onInputChange={(event, newInputValue) => {
+                        setProductSearch(newInputValue);
+                      }}
+                      onChange={(event, newValue) => {
+                        handleProductChange(index, 'product', newValue);
+                      }}
+                      loading={loadingProducts}
+                      renderInput={(params) => (
+                        <TextField
+                          {...params}
+                          label="Product"
+                          InputProps={{
+                            ...params.InputProps,
+                            endAdornment: (
+                              <>
+                                {loadingProducts ? <MuiCircularProgress color="inherit" size={20} /> : null}
+                                {params.InputProps.endAdornment}
+                              </>
+                            ),
+                          }}
+                        />
+                      )}
+                    />
                   </Grid>
                   <Grid item xs={3}>
                     <TextField
@@ -1396,7 +1819,12 @@ const OrderList = () => {
                       type="number"
                       value={product.quantity}
                       onChange={(e) => handleProductChange(index, 'quantity', e.target.value)}
-                      InputProps={{ inputProps: { min: 1 } }}
+                      InputProps={{
+                        inputProps: {
+                          min: 0,
+                          step: "0.01",   // 👈 THIS FIXES IT
+                        },
+                      }}
                     />
                   </Grid>
                 </Grid>
@@ -1415,8 +1843,19 @@ const OrderList = () => {
                 InputProps={{ inputProps: { min: 0 } }}
               />
             </Grid>
-
             <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Fitting Cost (₹)"
+                name="fittingCost"
+                type="number"
+                value={completeForm.fittingCost}
+                onChange={handleCompleteChange}
+                InputProps={{ inputProps: { min: 0 } }}
+              />
+            </Grid>
+
+            {/* <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
                 label="Discount Percentage (%)"
@@ -1428,11 +1867,79 @@ const OrderList = () => {
                 error={!!formErrors.discountPercentage}
                 helperText={formErrors.discountPercentage}
               />
+            </Grid> */}
+            <Grid item xs={12} sm={6}>
+              <FormControl fullWidth>
+                <InputLabel>Discount Type</InputLabel>
+                <Select
+                  value={completeForm.discount.type}
+                  label="Discount Type"
+                  onChange={(e) =>
+                    setCompleteForm((prev) => ({
+                      ...prev,
+                      discount: {
+                        ...prev.discount,
+                        type: e.target.value
+                      }
+                    }))
+                  }
+                >
+                  <MenuItem value="percentage">Percentage (%)</MenuItem>
+                  <MenuItem value="amount">Fixed Amount (₹)</MenuItem>
+                </Select>
+              </FormControl>
             </Grid>
 
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label={
+                  completeForm.discount.type === 'percentage'
+                    ? 'Discount (%)'
+                    : 'Discount Amount (₹)'
+                }
+                type="number"
+                value={completeForm.discount.value}
+                onChange={(e) =>
+                  setCompleteForm((prev) => ({
+                    ...prev,
+                    discount: {
+                      ...prev.discount,
+                      value: e.target.value
+                    }
+                  }))
+                }
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      {completeForm.discount.type === 'percentage' ? '%' : '₹'}
+                    </InputAdornment>
+                  ),
+                  inputProps:
+                    completeForm.discount.type === 'percentage'
+                      ? { min: 0, max: 100 }
+                      : { min: 0, step: "0.01" },
+                }}
+
+
+
+
+
+
+              />
+            </Grid>
+
+
             <Grid item xs={12}>
-              <Button type="submit" variant="contained" fullWidth color="success">
-                Complete Order
+              <Button
+                type="submit"
+                variant="contained"
+                fullWidth
+                color="success"
+                disabled={formLoading}
+                startIcon={formLoading ? <CircularProgress size={20} color="inherit" /> : null}
+              >
+                {formLoading ? "Completing..." : "Complete Order"}
               </Button>
             </Grid>
           </Grid>
@@ -1441,95 +1948,291 @@ const OrderList = () => {
     </Modal>
   );
 
-  // Add this modal for discount approval
+
+
   const renderDiscountModal = () => {
-    // Calculate discount amount
-    const discountAmount = selectedOrder ? calculateDiscountAmount(selectedOrder) : 0;
+    if (!selectedOrder) return null;
 
-    return <Modal open={openDiscountModal} onClose={() => setOpenDiscountModal(false)}>
-      <Box sx={modalStyle}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Typography variant="h6">Discount Approval</Typography>
-          <IconButton onClick={() => setOpenDiscountModal(false)} size="small">
-            <CloseIcon />
-          </IconButton>
-        </Box>
+    /* ================= BACKEND MATCHED CALC ================= */
 
-        {selectedOrder && (
-          <>
-            <Box sx={{ mt: 3, mb: 2 }}>
-              <Grid container justifyContent="space-between">
-                <Grid item>
-                  <Typography variant="body1">
-                    <strong>Discount:</strong> {selectedOrder?.discountPercentage || 0}%
-                  </Typography>
-                </Grid>
-                <Grid item>
-                  <Typography variant="body1">
-                    <strong>Amount:</strong> ₹{discountAmount.toFixed(2)}
-                  </Typography>
-                </Grid>
-              </Grid>
-            </Box>
+    const installationCharge =
+      Number(selectedOrder.installationCharge) || 0;
 
-            <Divider sx={{ my: 2 }} />
+    let productTotal = installationCharge;
 
-            <Typography variant="subtitle1" gutterBottom>
-              Responsibility Distribution
+    (selectedOrder.products || []).forEach(item => {
+      const price =
+        Number(item.salePrice ?? item.product?.price) || 0;
+      const qty = Number(item.quantity) || 0;
+      productTotal += price * qty;
+    });
+
+    const miscCost =
+      Number(selectedOrder.miscellaneousCost) || 0;
+
+    const fittingCharge =
+      Number(selectedOrder.fittingCost) || 0;
+
+    /* ❌ SERVICE RATE REMOVED FROM DISCOUNT BASE */
+    const serviceRate =
+      Number(selectedOrder.technician?.serviceRate) || 0;
+
+    /* ---- GROSS SUBTOTAL (MATCH BACKEND EXACTLY) ---- */
+    const grossSubtotal =
+      productTotal
+      + miscCost
+      + fittingCharge;
+
+    /* ================= DISCOUNT ================= */
+
+    let discountAmount = 0;
+    let discountLabel = "";
+
+    if (selectedOrder.discount?.type === "percentage") {
+      const pct = Math.max(
+        0,
+        Math.min(100, Number(selectedOrder.discount?.value) || 0)
+      );
+
+      discountAmount = grossSubtotal * (pct / 100);
+      discountLabel = `${pct}%`;
+    }
+
+    if (selectedOrder.discount?.type === "amount") {
+      discountAmount = Math.min(
+        grossSubtotal,
+        Number(selectedOrder.discount?.value) || 0
+      );
+
+      discountLabel = `₹${selectedOrder.discount?.value}`;
+    }
+
+    /* ================= SPLIT ================= */
+
+    const split = selectedOrder.discountSplit || {
+      ownerPercentage: 100,
+      technicianPercentage: 0
+    };
+
+    const technicianDiscount =
+      discountAmount *
+      (Number(split.technicianPercentage) / 100);
+
+    const ownerDiscount =
+      discountAmount *
+      (Number(split.ownerPercentage) / 100);
+
+    const netAmount =
+      grossSubtotal - discountAmount;
+
+    return (
+      <Modal
+        open={openDiscountModal}
+        onClose={() => setOpenDiscountModal(false)}
+        sx={modalContainerSx}
+      >
+        <Box sx={modalStyle}>
+          {/* HEADER */}
+          <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+            <Typography variant="h6">
+              Discount Approval
+            </Typography>
+            <IconButton
+              onClick={() => setOpenDiscountModal(false)}
+              size="small"
+            >
+              <CloseIcon />
+            </IconButton>
+          </Box>
+
+          {/* ================= DISCOUNT SUMMARY ================= */}
+          <Box sx={{ mt: 3 }}>
+            <Typography variant="subtitle1">
+              Discount Summary
             </Typography>
 
-            <Box sx={{ px: 2, py: 3, backgroundColor: '#f5f5f5', borderRadius: 1 }}>
-              <Grid container spacing={2} alignItems="center">
-                <Grid item xs={3}>
-                  <Typography variant="body2" color="primary">
-                    Owner: {discountSplit.owner}%
-                  </Typography>
-                </Grid>
-                <Grid item xs={6}>
-                  <Slider
-                    value={discountSplit.owner}
-                    onChange={handleDiscountSplitChange}
-                    aria-labelledby="discount-split-slider"
-                    valueLabelDisplay="auto"
-                    step={5}
-                    marks
-                    min={0}
-                    max={100}
-                  />
-                </Grid>
-                <Grid item xs={3} textAlign="right">
-                  <Typography variant="body2" color="secondary">
-                    Technician: {discountSplit.technician}%
-                  </Typography>
-                </Grid>
-              </Grid>
-            </Box>
+            <Grid container justifyContent="space-between">
+              <Typography>Gross Subtotal</Typography>
+              <Typography fontWeight="600">
+                {formatCurrency(grossSubtotal)}
+              </Typography>
+            </Grid>
 
-            <Box sx={{ mt: 4, display: 'flex', justifyContent: 'space-between' }}>
-              <Button
-                variant="contained"
-                color="error"
-                onClick={handleRejectDiscount}
-                disabled={loading}
-              >
-                Reject Discount
-              </Button>
+            <Grid container justifyContent="space-between">
+              <Typography>
+                Discount ({discountLabel})
+              </Typography>
+              <Typography color="error.main" fontWeight="600">
+                -{formatCurrency(discountAmount)}
+              </Typography>
+            </Grid>
 
-              <Button
-                variant="contained"
-                color="success"
-                onClick={handleApproveDiscount}
-                disabled={loading}
-                startIcon={<CheckCircleIcon />}
-              >
-                Approve Distribution
-              </Button>
-            </Box>
-          </>
-        )}
-      </Box>
-    </Modal>
+            <Grid container justifyContent="space-between">
+              <Typography fontWeight="600">
+                Net After Discount
+              </Typography>
+              <Typography fontWeight="600">
+                {formatCurrency(netAmount)}
+              </Typography>
+            </Grid>
+
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ display: "block", mt: 1 }}
+            >
+              Applied to: Products + Installation + Misc + Fitting
+            </Typography>
+
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ display: "block" }}
+            >
+              Service charge (₹{serviceRate}) is NOT discounted
+            </Typography>
+          </Box>
+
+          <Divider sx={{ my: 3 }} />
+
+          {/* ================= SPLIT SECTION ================= */}
+          <Box>
+            <Typography variant="subtitle1" gutterBottom>
+              Discount Distribution
+            </Typography>
+
+            <Grid container justifyContent="space-between">
+              <Typography fontWeight="bold">
+                Owner ({split.ownerPercentage}%)
+              </Typography>
+              <Typography fontWeight="bold">
+                Technician ({split.technicianPercentage}%)
+              </Typography>
+            </Grid>
+
+            <Slider
+              value={discountSplit.owner}
+              onChange={(e, val) =>
+                setDiscountSplit({
+                  owner: Number(val),
+                  technician: 100 - Number(val)
+                })
+              }
+              step={5}
+              min={0}
+              max={100}
+              valueLabelDisplay="auto"
+            />
+
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ display: "block", mt: 1 }}
+            >
+              Technician absorbs {formatCurrency(technicianDiscount)} |
+              Owner absorbs {formatCurrency(ownerDiscount)}
+            </Typography>
+          </Box>
+
+          <Divider sx={{ my: 3 }} />
+
+          {/* ================= ACTIONS ================= */}
+          <Box
+            sx={{
+              mt: 4,
+              display: "flex",
+              justifyContent: "space-between"
+            }}
+          >
+            <Button
+              variant="contained"
+              color="error"
+              onClick={handleRejectDiscount}
+              disabled={formLoading}
+              startIcon={formLoading ? <CircularProgress size={20} color="inherit" /> : null}
+            >
+              {formLoading ? "Processing..." : "Reject Discount"}
+            </Button>
+
+            <Button
+              variant="contained"
+              color="success"
+              onClick={handleApproveDiscount}
+              disabled={formLoading}
+              startIcon={formLoading ? <CircularProgress size={20} color="inherit" /> : <CheckCircleIcon />}
+            >
+              {formLoading ? "Approving..." : "Approve Distribution"}
+            </Button>
+          </Box>
+        </Box>
+      </Modal>
+    );
   };
+
+
+
+
+
+
+  const isDateRangeValid = () => {
+    if (!startDate || !endDate) return false;
+
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+
+    const diffInDays = (end - start) / (1000 * 60 * 60 * 24);
+
+    return diffInDays >= 0 && diffInDays <= 90;
+  };
+
+
+  const handleExport = async () => {
+    if (!isDateRangeValid()) {
+      alert("Date range must be within 90 days and valid.");
+      return;
+    }
+
+    try {
+      setExportLoading(true);
+
+      const res = await orderApi.exportOrders({
+        startDate,
+        endDate,
+      });
+
+      // Create file from response
+      const blob = new Blob([res.data], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+
+      // Optional: dynamic filename with date range
+      link.setAttribute(
+        "download",
+        `Orders_${startDate}_to_${endDate}.xlsx`
+      );
+
+      document.body.appendChild(link);
+      link.click();
+
+      // Cleanup
+      link.remove();
+      window.URL.revokeObjectURL(url);
+
+    } catch (error) {
+      console.error(error);
+      alert("Export failed");
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
+
+
 
 
   return (
@@ -1547,83 +2250,149 @@ const OrderList = () => {
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
 
-<Paper
-  elevation={2}
-  sx={{
-    p: 2,
-    mb: 3,
-    borderRadius: 2,
-    display: "flex",
-    flexWrap: "wrap",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 2
-  }}
->
-  {/* Left Section */}
-  <Box sx={{ display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap" }}>
-    <Typography variant="subtitle1" fontWeight={600}>
-      Export Orders
-    </Typography>
+      <DateRangeExport
+        title="Export Orders"
+        filePrefix="Orders"
+        exportApi={orderApi.exportOrders}
+      />
 
-    <TextField
-      type="date"
-      label="Start Date"
-      size="small"
-      InputLabelProps={{ shrink: true }}
-      value={startDate}
-      onChange={(e) => setStartDate(e.target.value)}
-    />
 
-    <TextField
-      type="date"
-      label="End Date"
-      size="small"
-      InputLabelProps={{ shrink: true }}
-      value={endDate}
-      onChange={(e) => setEndDate(e.target.value)}
-      error={startDate && endDate && !isDateRangeValid()}
-      helperText={
-        startDate && endDate && !isDateRangeValid()
-          ? "Maximum range is 90 days"
-          : ""
-      }
-    />
-  </Box>
-
-  {/* Right Section */}
-  <Button
-    variant="contained"
-    size="medium"
-    onClick={handleExport}
-    disabled={!isDateRangeValid() || exportLoading}
-    sx={{
-      minWidth: 140,
-      fontWeight: 600
-    }}
-  >
-    {exportLoading ? "Exporting..." : "Export Excel"}
-  </Button>
-</Paper>
 
       <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-        <DataGrid
-          rows={orders}
-          columns={columns}
-          rowCount={totalRows}
-          paginationMode="server"
-          paginationModel={paginationModel}
-          onPaginationModelChange={setPaginationModel}
-          pageSizeOptions={[5, 10, 25]}
-          loading={loading}
+
+
+        <Box
           sx={{
-            flex: 1,
-            minHeight: 300,
-            '& .MuiDataGrid-cell': {
-              py: 1
-            }
+            display: 'flex',
+            gap: 2,
+            mb: 2,
+            alignItems: 'center'
           }}
-        />
+        >
+          <TextField
+            label="Search by TCR Number"
+            variant="outlined"
+            size="small"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            sx={{ width: 300 }}
+          />
+
+          <Button
+            variant="contained"
+            onClick={handleSearch}
+            sx={{
+              height: 40,
+              textTransform: 'none',
+              fontWeight: 600
+            }}
+          >
+            Search
+          </Button>
+
+          {searchQuery && (
+            <Button
+              variant="outlined"
+              color="secondary"
+              onClick={() => {
+                setSearchInput('');
+                setSearchQuery('');
+                setPaginationModel(prev => ({ ...prev, page: 0 }));
+              }}
+              sx={{ height: 40, textTransform: 'none' }}
+            >
+              Clear
+            </Button>
+          )}
+        </Box>
+
+
+
+        {isMobile ? (
+          <Box sx={{ overflowY: 'auto', p: 1, flexGrow: 1 }}>
+            {orders.map((order) => (
+              <Card key={order.id} sx={{ mb: 2 }}>
+                <CardContent>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                    <Typography variant="subtitle1" fontWeight="bold">{order.TCRNumber}</Typography>
+                    <Chip
+                      label={order.status}
+                      color={
+                        order.status === 'completed' ? 'success' :
+                          order.status === 'pending-approval' ? 'warning' :
+                            order.status === 'approved' ? 'primary' : 'info'
+                      }
+                      size="small"
+                    />
+                  </Box>
+                  <Typography variant="body2"><strong>Company:</strong> {order.companyName}</Typography>
+                  <Typography variant="body2"><strong>Technician:</strong> {order.technicianName}</Typography>
+                  <Typography variant="body2"><strong>Customer:</strong> {order.customerName}</Typography>
+                  <Typography variant="body2" color="primary" sx={{ mt: 1, fontWeight: 'bold' }}>
+                    Total: ₹{order.totalAmount?.toFixed(2) || '0.00'}
+                  </Typography>
+
+                  <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2, gap: 1 }}>
+                    <IconButton onClick={() => handleViewDraftOpen(order)} color="primary" size="small">
+                      <VisibilityIcon />
+                    </IconButton>
+
+                    {order.status === 'draft' && (
+                      <>
+                        <IconButton onClick={() => handleEditDraftOpen(order)} color="primary" size="small">
+                          <EditIcon />
+                        </IconButton>
+                        <IconButton onClick={() => handleCompleteOpen(order)} color="primary" size="small">
+                          <CheckCircleIcon />
+                        </IconButton>
+                        {user.role === "admin" && (
+                          <IconButton onClick={() => setDeleteId(order.id)} color="error" size="small">
+                            <DeleteIcon />
+                          </IconButton>
+                        )}
+                      </>
+                    )}
+
+                    {order.status === 'pending-approval' && (
+                      <>
+                        <IconButton onClick={() => handleDiscountOpen(order)} color="success" size="small">
+                          <PercentIcon />
+                        </IconButton>
+                        {user.role === "admin" && (
+                          <IconButton onClick={() => setDeleteId(order.id)} color="error" size="small">
+                            <DeleteIcon />
+                          </IconButton>
+                        )}
+                      </>
+                    )}
+                  </Box>
+                </CardContent>
+              </Card>
+            ))}
+            {orders.length === 0 && !loading && (
+              <Typography align="center" sx={{ mt: 4 }}>No orders found</Typography>
+            )}
+          </Box>
+        ) : (
+          <DataGrid
+            rows={orders}
+            columns={columns}
+            rowCount={totalRows}
+            paginationMode="server"
+            paginationModel={paginationModel}
+            onPaginationModelChange={setPaginationModel}
+            pageSizeOptions={[5, 10, 25]}
+            loading={loading}
+            sx={{
+              flex: 1,
+              minHeight: 300,
+              '& .MuiDataGrid-cell': {
+                py: 1
+              }
+            }}
+          />
+        )}
       </Box>
 
       {renderCreateModal()}
@@ -1631,6 +2400,75 @@ const OrderList = () => {
       {renderViewModal()}
       {renderCompleteModal()}
       {renderDiscountModal()}
+      <Dialog open={!!deleteId} onClose={() => setDeleteId(null)}>
+        <DialogTitle>Delete Order</DialogTitle>
+        <DialogContent>
+          Are you sure you want to delete this order?
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteId(null)}>Cancel</Button>
+          <Button
+            color="error"
+            onClick={() => handleDeleteDraft(deleteId)}
+          >
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };
+
+const InfoRow = ({ label, value }) => (
+  <Grid container spacing={1} sx={{ mb: 0.5 }}>
+    <Grid item xs={4}>
+      <Typography variant="body2">
+        <strong>{label}:</strong>
+      </Typography>
+    </Grid>
+    <Grid item xs={8}>
+      <Typography variant="body2">
+        {value ?? '—'}
+      </Typography>
+    </Grid>
+  </Grid>
+);
+
+const SummaryRow = ({ label, value, bold = false, error = false }) => (
+  <Grid container>
+    <Grid item xs={9}>
+      <Typography fontWeight={bold ? 'bold' : 'normal'}>
+        {label}
+      </Typography>
+    </Grid>
+    <Grid item xs={3} textAlign="right">
+      <Typography
+        fontWeight={bold ? 'bold' : 'normal'}
+        color={error ? 'error' : 'inherit'}
+      >
+        ₹{Number(value || 0).toFixed(2)}
+      </Typography>
+    </Grid>
+  </Grid>
+);
+
+const FinanceRow = ({ label, value, bold, error }) => (
+  <Box display="flex" justifyContent="space-between" py={0.5}>
+    <Typography
+      fontWeight={bold ? "bold" : 400}
+      color={error ? "error.main" : "text.primary"}
+    >
+      {label}
+    </Typography>
+    <Typography
+      fontWeight={bold ? "bold" : 500}
+      color={value < 0 ? "error.main" : error ? "error.main" : "text.primary"}
+    >
+      ₹{Number(value).toFixed(2)}
+    </Typography>
+  </Box>
+);
+
+export default OrderList;
+
+
