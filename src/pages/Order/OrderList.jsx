@@ -115,89 +115,8 @@ const OrderList = () => {
   const [technicianSearch, setTechnicianSearch] = useState('');
   const [productSearch, setProductSearch] = useState('');
 
-  // Dropdown Fetchers
-  const fetchCompaniesDropdown = async (search = '') => {
-    try {
-      setLoadingCompanies(true);
-      const res = await companyApi.getCompanies({ search, limit: 5 });
-      setCompanies(res.data.data || []);
-    } catch (err) {
-      console.error('Failed to load companies', err);
-    } finally {
-      setLoadingCompanies(false);
-    }
-  };
 
-  const fetchTechniciansDropdown = async (search = '') => {
-    try {
-      setLoadingTechnicians(true);
-      const res = await technicianApi.getTechnicians({ search, limit: 5 });
-      setFilteredTechnicians(res.data.data || []);
-    } catch (err) {
-      console.error('Failed to load technicians', err);
-    } finally {
-      setLoadingTechnicians(false);
-    }
-  };
-
-  const fetchProductsDropdown = async (search = '') => {
-    try {
-      setLoadingProducts(true);
-      const res = await productApi.getProducts({ search, limit: 5 });
-      setProducts(res.data.data || []);
-    } catch (err) {
-      console.error('Failed to load products', err);
-    } finally {
-      setLoadingProducts(false);
-    }
-  };
-
-  // Initial load
-  useEffect(() => {
-    fetchCompaniesDropdown();
-    fetchTechniciansDropdown();
-    fetchProductsDropdown();
-  }, []);
-
-  // Debounced search for dropdowns
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (companySearch) fetchCompaniesDropdown(companySearch);
-      else if (openCreateModal || openEditModal) fetchCompaniesDropdown();
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [companySearch]);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (technicianSearch) fetchTechniciansDropdown(technicianSearch);
-      else if (openCreateModal || openEditModal) fetchTechniciansDropdown();
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [technicianSearch]);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (productSearch) fetchProductsDropdown(productSearch);
-      else if (openCompleteModal) fetchProductsDropdown();
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [productSearch]);
-
-  const [discountSplit, setDiscountSplit] = useState({ owner: 100, technician: 0 });
-
-  //   const [productDiscountSplit, setProductDiscountSplit] = useState({
-  //   owner: 100,
-  //   technician: 0
-  // });
-
-  // const [miscDiscountSplit, setMiscDiscountSplit] = useState({
-  //   owner: 100,
-  //   technician: 0
-  // });
-
-
-  // Form States
+    // Form States
   const [draftForm, setDraftForm] = useState({
     TCRNumber: '',
     company: null,
@@ -227,6 +146,96 @@ const OrderList = () => {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [exportLoading, setExportLoading] = useState(false);
+
+
+  // Dropdown Fetchers
+  const fetchCompaniesDropdown = async (search = '') => {
+    try {
+      setLoadingCompanies(true);
+      const res = await companyApi.getCompanies({ search, limit: 5 });
+      setCompanies(res.data.data || []);
+    } catch (err) {
+      console.error('Failed to load companies', err);
+    } finally {
+      setLoadingCompanies(false);
+    }
+  };
+
+  // Always pass companyId + isBlocked:false so only eligible technicians appear
+  const fetchTechniciansDropdown = async (search = '', companyId = null) => {
+    try {
+      setLoadingTechnicians(true);
+      const params = { search, limit: 5, isBlocked: false };
+      if (companyId) params.companyId = companyId;
+      const res = await technicianApi.getTechnicians(params);
+      setFilteredTechnicians(res.data.data || []);
+    } catch (err) {
+      console.error('Failed to load technicians', err);
+    } finally {
+      setLoadingTechnicians(false);
+    }
+  };
+
+  const fetchProductsDropdown = async (search = '') => {
+    try {
+      setLoadingProducts(true);
+      const res = await productApi.getProducts({ search, limit: 5 });
+      setProducts(res.data.data || []);
+    } catch (err) {
+      console.error('Failed to load products', err);
+    } finally {
+      setLoadingProducts(false);
+    }
+  };
+
+  // Initial load — technicians are intentionally NOT pre-loaded here;
+  // they are fetched on-demand once a company is selected.
+  useEffect(() => {
+    fetchCompaniesDropdown();
+    fetchProductsDropdown();
+  }, []);
+
+  // Debounced search for dropdowns
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (companySearch) fetchCompaniesDropdown(companySearch);
+      else if (openCreateModal || openEditModal) fetchCompaniesDropdown();
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [companySearch]);
+
+  // Technician search stays scoped to the currently selected company
+  useEffect(() => {
+    const companyId = draftForm.company?._id || null;
+    // Only search when a company is selected; otherwise the list is empty by design
+    if (!companyId) return;
+    const timer = setTimeout(() => {
+      fetchTechniciansDropdown(technicianSearch, companyId);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [technicianSearch, draftForm.company?._id]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (productSearch) fetchProductsDropdown(productSearch);
+      else if (openCompleteModal) fetchProductsDropdown();
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [productSearch]);
+
+  const [discountSplit, setDiscountSplit] = useState({ owner: 100, technician: 0 });
+
+  //   const [productDiscountSplit, setProductDiscountSplit] = useState({
+  //   owner: 100,
+  //   technician: 0
+  // });
+
+  // const [miscDiscountSplit, setMiscDiscountSplit] = useState({
+  //   owner: 100,
+  //   technician: 0
+  // });
+
+
 
 
 
@@ -601,6 +610,9 @@ const OrderList = () => {
 
   const handleEditDraftOpen = (order) => {
     setSelectedOrder({ ...order, technicianName: order.technician?.name });
+    // Clear stale technician list so the dropdown never shows results from a
+    // previous session before the fresh fetch completes.
+    setFilteredTechnicians([]);
     setDraftForm({
       TCRNumber: order.TCRNumber || '',
       company: order.company || null,
@@ -620,6 +632,11 @@ const OrderList = () => {
         }
       }
     });
+    // Force a fresh fetch even if company._id hasn't changed since the last open
+    // (handles blocked-technician-after-assignment edge case)
+    if (order.company?._id) {
+      fetchTechniciansDropdown('', order.company._id);
+    }
     setOpenEditModal(true);
   };
 
@@ -1041,11 +1058,10 @@ const OrderList = () => {
                   onChange={(event, newValue) => {
                     setDraftForm({ ...draftForm, company: newValue, technician: null });
                     setFormErrors({ ...formErrors, company: null });
-                    if (newValue) {
-                      fetchTechniciansDropdown(newValue._id);
-                    } else {
-                      setFilteredTechnicians([]);
-                    }
+                    // Clearing company clears the technician list immediately.
+                    // When a company IS selected the useEffect watching
+                    // draftForm.company?._id handles the filtered fetch.
+                    if (!newValue) setFilteredTechnicians([]);
                   }}
                   loading={loadingCompanies}
                   renderInput={(params) => (
@@ -1257,6 +1273,7 @@ const OrderList = () => {
                 onChange={(event, newValue) => {
                   setDraftForm({ ...draftForm, company: newValue, technician: null });
                   setFormErrors({ ...formErrors, company: null });
+                  if (!newValue) setFilteredTechnicians([]);
                 }}
                 loading={loadingCompanies}
                 renderInput={(params) => (
