@@ -1457,7 +1457,9 @@ const OrderList = () => {
       Number(selectedOrder.miscellaneousCost) || 0;
 
     const serviceRate =
-      Number(selectedOrder.technician?.serviceRate) || 0;
+      selectedOrder.technicianServiceRate !== undefined
+        ? selectedOrder.technicianServiceRate
+        : Number(selectedOrder.technician?.serviceRate) || 0;
 
     /* ---- GROSS SUBTOTAL (EXACT BACKEND MATCH) ---- */
     const grossSubtotal =
@@ -1587,8 +1589,20 @@ const OrderList = () => {
 
                       <InfoRow label="Name" value={selectedOrder.technician?.name} />
                       <InfoRow label="Phone" value={selectedOrder.technician?.phone} />
-                      <InfoRow label="Service Rate" value={`₹${selectedOrder.technician?.serviceRate}`} />
-                      <InfoRow label="Misc. Share" value={`${selectedOrder.technician?.miscShare}%`} />
+                      <InfoRow
+                        label="Service Rate"
+                        value={`₹${selectedOrder.technicianServiceRate !== undefined
+                          ? selectedOrder.technicianServiceRate
+                          : selectedOrder.technician?.serviceRate || 0
+                          }`}
+                      />
+                      <InfoRow
+                        label="Misc. Share"
+                        value={`${selectedOrder.technicianMiscShare !== undefined
+                          ? selectedOrder.technicianMiscShare
+                          : selectedOrder.technician?.miscShare || 0
+                          }%`}
+                      />
 
                     </Grid>
 
@@ -1975,7 +1989,9 @@ const OrderList = () => {
 
     /* ❌ SERVICE RATE REMOVED FROM DISCOUNT BASE */
     const serviceRate =
-      Number(selectedOrder.technician?.serviceRate) || 0;
+      selectedOrder.technicianServiceRate !== undefined
+        ? selectedOrder.technicianServiceRate
+        : Number(selectedOrder.technician?.serviceRate) || 0;
 
     /* ---- GROSS SUBTOTAL (MATCH BACKEND EXACTLY) ---- */
     const grossSubtotal =
